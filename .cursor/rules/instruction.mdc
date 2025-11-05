@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+Before providing an answer, you MUST read the files: `@_AiIntructions.md` and strictly follow all the development guidelines, coding standards, and rules defined within it.
+You MUST also consider all information previously stored in your memory regarding this project's development guidelines.
