@@ -268,10 +268,6 @@ _AI_INSTRUCTIONS.TXT
 /camera/camera_library/*
 staticfiles/*
 
-/docker-compose.yml
-/Dockerfile
-.env.*
-
 _AiIntructionsMemory.md
 _delete
 *.log
