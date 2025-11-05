@@ -20,6 +20,7 @@ class Settings(BaseSettings):
         APP_NAME: Application name
         APP_VERSION: Application version
         DEBUG: Debug mode flag
+        PORT: Application port
         WEBHOOK_URL: URL for webhook notifications
         WEBHOOK_TIMEOUT: Webhook request timeout in seconds
         LOG_LEVEL: Logging level
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Image Metadata API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    PORT: int = 8345
 
     WEBHOOK_URL: Optional[str] = None
     WEBHOOK_TIMEOUT: float = 10.0

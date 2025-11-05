@@ -73,7 +73,9 @@ async def health() -> dict:
 
 if __name__ == "__main__":
     import uvicorn
+    import os
 
     logger.info(f"Iniciando {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8345, reload=settings.DEBUG)
+    port = int(os.getenv("PORT", 8345))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=settings.DEBUG)

@@ -7,7 +7,7 @@ Este projeto utiliza **FastAPI** com **Python**, **PostgreSQL** e **Pythonnet** 
 ## 🛠️ Stack Tecnológica
 - **Operational System**: Docker for production, linux in wsl for development
 - **Backend**: FastAPI 4.x
-- **Linguagem**: Python 3.11+
+- **Linguagem**: Python 3.12+
 - **Database**: PostgreSQL/SQLite3
 - **SDK Integration**: Pythonnet + Flir Atlas SDK 7.5
 - **Camera Management**: Flir Thermal Cameras
