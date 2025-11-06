@@ -1,0 +1,3 @@
+"""
+Camera services module.
+"""
