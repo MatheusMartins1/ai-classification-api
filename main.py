@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config.settings import settings
-from routers import metadata
+from routers import upload
 from utils.logger_config import get_logger
 
 logger = get_logger(__name__)
@@ -37,7 +37,7 @@ def create_application() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(metadata.router)
+    app.include_router(upload.router)
 
     return app
 
@@ -72,8 +72,9 @@ async def health() -> dict:
 
 
 if __name__ == "__main__":
-    import uvicorn
     import os
+
+    import uvicorn
 
     logger.info(f"Iniciando {settings.APP_NAME} v{settings.APP_VERSION}")
 

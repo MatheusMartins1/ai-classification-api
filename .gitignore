@@ -272,3 +272,4 @@ _AiIntructionsMemory.md
 _delete
 *.log
 _chats
+temp/*
