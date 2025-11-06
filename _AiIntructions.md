@@ -211,7 +211,7 @@ import json
 import clr
 import os
 
-from ir_drone_stream import settings
+from config.settings import settings
 import threading
 import time
 import numpy as np

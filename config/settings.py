@@ -7,12 +7,14 @@ All rights reserved.
 """
 
 import os
+from pathlib import Path
+import mimetypes
+from utils.env import load_env_file
 from typing import Optional
 
 from pydantic_settings import BaseSettings
 
-
-class Settings(BaseSettings):
+class Settings(BaseSettings, _base_dir: Path):
     """
     Application settings loaded from environment variables.
 
@@ -26,23 +28,35 @@ class Settings(BaseSettings):
         LOG_LEVEL: Logging level
         MAX_FILE_SIZE: Maximum file size in bytes
     """
+    BASE_DIR: Path = None
+    if _base_dir is None:
+        BASE_DIR = Path(__file__).resolve().parent.parent
+    else:
+        BASE_DIR = _base_dir
+
+    env_file: str = load_env_file(BASE_DIR)
 
     APP_NAME: str = "Image Metadata API"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = False
-    PORT: int = 8345
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    PORT: int = int(os.getenv("PORT", "8345"))
 
-    WEBHOOK_URL: Optional[str] = None
-    WEBHOOK_TIMEOUT: float = 10.0
+    WEBHOOK_URL: Optional[str] = os.getenv("WEBHOOK_URL")
+    WEBHOOK_TIMEOUT: float = float(os.getenv("WEBHOOK_TIMEOUT", "10.0"))
 
-    LOG_LEVEL: str = "INFO"
-    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    MAX_FILE_SIZE: int = 1 * 1024 * 1024 * 1024  # 1GB
 
-    class Config:
-        """Pydantic configuration."""
+    # Supabase Configuration
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
 
-        env_file = ".env"
-        case_sensitive = True
+    MOCK_CAMERA: bool = os.getenv("MOCK_CAMERA", "false").lower() == "true"
 
+    # class Config:
+    #     """Pydantic configuration."""
+
+    #     env_file: str = settings.env_file
+    #     case_sensitive: bool = True
 
 settings = Settings()

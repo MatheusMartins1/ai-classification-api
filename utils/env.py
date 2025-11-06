@@ -22,8 +22,6 @@ def load_env_file(BASE_DIR=None, use_prod=False):
         except Exception as e:
             print(f"Erro: {e}")
 
-    load_dotenv(os.path.join(BASE_DIR, ".env.runner"))
-
     # Load environment variables
     if is_dev_environment and not use_prod:
         dotenv_path = os.path.join(BASE_DIR, ".env.dev")
@@ -32,7 +30,7 @@ def load_env_file(BASE_DIR=None, use_prod=False):
     
     load_dotenv(dotenv_path, override=True)
     print(
-        f"Loading .env for {dotenv_path} for user: {system_user} and backend: {os.getenv('BACKEND_HOST')}"
+        f"Loading .env for {dotenv_path} for user: {system_user}"
     )
     
-    return
+    return dotenv_path

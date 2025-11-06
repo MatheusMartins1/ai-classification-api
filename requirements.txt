@@ -19,3 +19,5 @@ psutil
 python-dotenv
 channels>=4.0.0
 redis
+supabase>=2.0.0
+clr
