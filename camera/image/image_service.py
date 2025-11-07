@@ -5,13 +5,13 @@ Contact Email: matheus.sql18@gmail.com
 All rights reserved. This software is the property of Matheus Martins da Silva. No part of this software may be used, reproduced, distributed, or modified without the express written permission of the owner.
 """
 
+import clr
 import datetime
 import json
 import os
+import sys
 from threading import Lock
 from typing import Any, Dict, Optional
-
-import clr
 
 from config.settings import settings
 from utils import object_handler
@@ -23,7 +23,7 @@ logger = LoggerConfig.add_file_logger(
 
 # Add the path to the directory containing the compiled DLL
 dll_path = os.path.join(settings.BASE_DIR, "ThermalCameraLibrary")
-
+sys.path.append(dll_path)
 clr.AddReference(os.path.join(dll_path, "ThermalCamera.dll"))
 clr.AddReference(os.path.join(dll_path, "Flir.Atlas.Live.dll"))
 clr.AddReference(os.path.join(dll_path, "Flir.Atlas.Image.dll"))

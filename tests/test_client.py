@@ -70,6 +70,7 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
                 timeout=30,
             )
 
+        response_json = response.json()
         print(f"✅ Status Code: {response.status_code}")
         if response.status_code == 200:
             result = response.json()

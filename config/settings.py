@@ -8,13 +8,20 @@ All rights reserved.
 
 import os
 from pathlib import Path
-import mimetypes
-from utils.env import load_env_file
 from typing import Optional
 
 from pydantic_settings import BaseSettings
 
-class Settings(BaseSettings, _base_dir: Path):
+from utils.env import load_env_file
+
+# Determine base directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables
+env_file_path = load_env_file(BASE_DIR)
+
+
+class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
 
@@ -27,14 +34,12 @@ class Settings(BaseSettings, _base_dir: Path):
         WEBHOOK_TIMEOUT: Webhook request timeout in seconds
         LOG_LEVEL: Logging level
         MAX_FILE_SIZE: Maximum file size in bytes
+        SUPABASE_URL: Supabase project URL
+        SUPABASE_KEY: Supabase API key
+        MOCK_CAMERA: Enable mock camera for testing
     """
-    BASE_DIR: Path = None
-    if _base_dir is None:
-        BASE_DIR = Path(__file__).resolve().parent.parent
-    else:
-        BASE_DIR = _base_dir
 
-    env_file: str = load_env_file(BASE_DIR)
+    BASE_DIR: Path = BASE_DIR
 
     APP_NAME: str = "Image Metadata API"
     APP_VERSION: str = "1.0.0"
@@ -53,10 +58,10 @@ class Settings(BaseSettings, _base_dir: Path):
 
     MOCK_CAMERA: bool = os.getenv("MOCK_CAMERA", "false").lower() == "true"
 
-    # class Config:
-    #     """Pydantic configuration."""
+    class Config:
+        """Pydantic configuration."""
 
-    #     env_file: str = settings.env_file
-    #     case_sensitive: bool = True
+        case_sensitive = True
+
 
 settings = Settings()
