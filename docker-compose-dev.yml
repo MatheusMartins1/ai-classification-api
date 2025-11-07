@@ -9,7 +9,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ai-regression-api:dev
+    image: ai-regression-api
     container_name: ai-regression-api-dev
     ports:
       - "${PORT:-8345}:${PORT:-8345}"
