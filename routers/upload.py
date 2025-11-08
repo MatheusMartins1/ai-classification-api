@@ -119,7 +119,7 @@ async def upload_inspection(
             )
 
         for index, image in enumerate(processed_ir_files):
-            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["filename"],data_to_extract="complete")
+            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["filename"])
             processed_ir_files[index].update(extracted_data)
 
         # Build response
@@ -147,5 +147,5 @@ async def upload_inspection(
     except Exception as e:
         logger.error(f"Erro ao processar upload: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Erro ao processar arquivos: {str(e)}"
+            status_code=500, detail=f"Erro ao processar arquivos:"
         )

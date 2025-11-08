@@ -13,14 +13,13 @@ import cv2
 from typing import Any, Dict, Optional, Union
 import flyr
 import json
+import pandas as pd
 
 from pydantic_core.core_schema import none_schema
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print("Base directory: ", base_dir)
 os.chdir(base_dir)
 sys.path.append(base_dir)
-
 
 from config import settings as settings_module
 
@@ -41,11 +40,12 @@ logger = LoggerConfig.add_file_logger(
 
 def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     image_path = os.path.join("temp", image_name)
+    image_filename = image_name.split(".")[0]
 
     thermogram = flyr.unpack(image_path)
     # Initialize data structure
     thermogram_data = {
-        "image_filename": image_name,
+        "image_filename": image_filename,
         "image_path": image_path,
     }
 
@@ -60,9 +60,17 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         celsius_array = None
 
     celsius_array = thermogram_data.get("celsius", None)
+    temperature_df = pd.DataFrame(celsius_array)
+    temperature_dict = temperature_df.to_dict(orient="records")
+    temperature_df.to_csv(
+        os.path.join("temp", f"{image_filename}_temperature.csv"), index=False
+    )
+    temperature_df.to_json(
+        os.path.join("temp", f"{image_filename}_temperature.json"), orient="records"
+    )
 
     # Save Optical image to temp folder
-    thermogram.optical_pil.save(os.path.join("temp", f"{image_name}_optical.jpg"))
+    thermogram.optical_pil.save(os.path.join("temp", f"{image_filename}_optical.jpg"))
 
     image_metadata = {
         "image_filename": thermogram_data.get("image_filename", None),
@@ -71,10 +79,11 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         "camera_metadata": thermogram_data.get("camera_metadata", None),
         "palette": thermogram_data.get("palette", None),
         "pip_info": thermogram_data.get("pip_info", None),
+        "temperature_json": temperature_dict,
     }
 
     # save json file
-    json_filename = os.path.join("temp", f"{image_name}_metadata.json")
+    json_filename = os.path.join("temp", f"{image_filename}_metadata.json")
     with open(json_filename, "w", encoding="utf-8") as json_file:
         json.dump(image_metadata, json_file, indent=2, ensure_ascii=False)
 
@@ -106,7 +115,7 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
                         elif isinstance(value, (str, int, float, bool)):
                             result[attr] = value
                         elif isinstance(value, (list, tuple)):
-                            result[attr] = list(value)
+                            result[attr] = list[Any](value)
                         elif isinstance(value, dict):
                             # Handle dictionary with potential non-serializable values
                             clean_dict = {}
@@ -121,6 +130,12 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
                                             clean_dict[k] = float(v)
                                         except:
                                             clean_dict[k] = str(v)
+                                    # Binary data
+                                    elif isinstance(v, bytes):
+                                        try:
+                                            clean_dict[k] = v.decode("utf-8")
+                                        except:
+                                            clean_dict[k] = str(v)
                                     else:
                                         clean_dict[k] = str(v)
                             result[attr] = clean_dict
@@ -132,6 +147,12 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
                                 max_depth,
                                 current_depth + 1,
                             )
+                        # Binary data
+                        elif isinstance(value, bytes):
+                            try:
+                                result[attr] = value.decode("utf-8")
+                            except:
+                                result[attr] = str(value)
                         else:
                             try:
                                 json.dumps(value)  # Test if JSON serializable
