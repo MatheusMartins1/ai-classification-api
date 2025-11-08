@@ -2,6 +2,7 @@
 # Developer: Matheus Martins da Silva
 # Creation Date: 11/2025
 
+#TODO: Change base image. This has high vulnerabilities
 FROM python:3.12-bookworm
 
 # Set environment variables
@@ -9,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     PYTHONNET_RUNTIME=coreclr \
-    PYTHONNET_CORECLR_RUNTIME_VERSION=7.0
+    DOTNET_ROOT=/usr/share/dotnet
 
 # Install system dependencies including libicu72 for .NET
 RUN apt-get update && apt-get install -y --no-install-recommends \
