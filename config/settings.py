@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
     SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
 
+    # API Key for authentication
+    API_KEY: Optional[str] = os.getenv("API_KEY")
+
     MOCK_CAMERA: bool = os.getenv("MOCK_CAMERA", "false").lower() == "true"
 
     class Config:

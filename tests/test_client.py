@@ -8,9 +8,11 @@ All rights reserved.
 
 import os
 import sys
+import dotenv
 
 import requests
 
+dotenv.load_dotenv(".env.prod")
 
 def test_health():
     """Test health endpoint."""
@@ -54,6 +56,12 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
     file_size = os.path.getsize(image_path)
     print(f"📤 Enviando arquivo: {filename} ({file_size:,} bytes)")
 
+    # Get API key from environment
+    api_key = os.getenv("API_KEY")
+    if not api_key:
+        print("⚠️  Aviso: API_KEY não encontrada no ambiente")
+        raise Exception("API_KEY não encontrada no ambiente")
+
     try:
         with open(image_path, "rb") as f:
             # Send with field name ir_image_0 (like frontend does)
@@ -64,10 +72,12 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
                 "company_id": "11111111-1111-1111-1111-111111111111",
                 "email": "test@tenesso.com",
             }
+            headers = {"X-API-Key": api_key}
             response = requests.post(
                 "http://localhost:8345/api/v1/upload-inspection",
                 files=files,
                 data=data,
+                headers=headers,
             )
 
         response_json = response.json()

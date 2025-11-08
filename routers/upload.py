@@ -12,9 +12,10 @@ import shutil
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from config.api_key import verify_api_key
 from utils.LoggerConfig import LoggerConfig
 
 logger = LoggerConfig.add_file_logger(
@@ -40,6 +41,7 @@ async def upload_inspection(
     user_id: str = Form(...),
     company_id: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
+    api_key: str = Depends(verify_api_key),
 ) -> JSONResponse:
     """
     Receive IR (infrared) images from frontend application.
@@ -160,11 +162,16 @@ async def upload_inspection(
         )
         try:
             # Send data to database without waiting for the response
-            asyncio.create_task(data_extractor_service.send_data_to_database(response_data))
+            asyncio.create_task(
+                data_extractor_service.send_data_to_database(response_data)
+            )
             logger.info(f"Dados enviados para o banco de dados")
         except Exception as e:
             logger.error(f"Erro ao enviar dados para o banco de dados: {e}")
-            raise HTTPException(status_code=500, detail=f"Erro ao enviar dados para o banco de dados: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao enviar dados para o banco de dados: {e}",
+            )
 
         return JSONResponse(status_code=200, content=response_data)
 
