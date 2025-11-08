@@ -1,41 +1,39 @@
-# Image Metadata API
+# Thermal Image Metadata API
 
-API FastAPI para extrair metadados de imagens seguindo princípios SOLID e boas práticas.
+API FastAPI para extrair metadados e dados térmicos de imagens FLIR usando flyr e OpenCV.
 
 ## 🏗️ Estrutura
 
 ```
 ai-regression-api/
 ├── main.py                 # Entry point
+├── Dockerfile              # Docker configuration
 ├── config/                 # Configurações
 │   └── settings.py         # Settings com Pydantic
 ├── models/                 # Modelos Pydantic
 │   └── image_metadata.py   # Modelos de metadata
 ├── services/               # Lógica de negócio
-│   ├── metadata_extractor.py  # Extração de metadados
-│   └── webhook_service.py      # Envio para webhook
+│   ├── data_extractor_service.py  # Extração de dados térmicos
+│   └── webhook_service.py         # Envio para webhook
 ├── routers/                # Endpoints FastAPI
-│   └── metadata.py         # Router de metadados
+│   └── upload.py           # Router de upload
 ├── utils/                  # Utilitários
-│   └── logger_config.py    # Logger centralizado
+│   ├── logger_config.py    # Logger centralizado
+│   └── azure/              # Azure integration
 └── requirements.txt        # Dependências
 ```
 
 ## ⚙️ Setup
 
-### Setup Automático
-```bash
-# Windows
-setup.bat
-
-# Linux/WSL
-chmod +x setup.sh
-./setup.sh
-```
-
-### Setup Manual
+### Desenvolvimento Local
 ```bash
 pip install -r requirements.txt
+```
+
+### Docker
+```bash
+docker build -t thermal-api .
+docker run -p 8345:8345 thermal-api
 ```
 
 ## 🔧 Configuração
@@ -77,33 +75,41 @@ GET /
 GET /health
 ```
 
-### Extrair Metadados
+### Upload de Inspeção Térmica
 
 ```bash
-POST /api/v1/extract-metadata
+POST /api/v1/upload-inspection
 Content-Type: multipart/form-data
 
-curl -X POST "http://localhost:8345/api/v1/extract-metadata" \
-  -F "file=@imagem.jpg"
+curl -X POST "http://localhost:8345/api/v1/upload-inspection" \
+  -F "user_id=user123" \
+  -F "ir_image_0=@FLIR1970.jpg"
 ```
 
 **Resposta:**
 
 ```json
 {
-  "success": true,
-  "metadata": {
-    "format": "JPEG",
-    "mode": "RGB",
-    "size": {"width": 1920, "height": 1080},
-    "file_size_bytes": 245678,
-    "filename": "imagem.jpg",
-    "content_type": "image/jpeg",
-    "timestamp": "2024-11-05T12:00:00",
-    "exif": {...},
-    "info": {...}
+  "status": "success",
+  "message": "Imagens IR recebidas com sucesso",
+  "user_info": {
+    "user_id": "user123",
+    "company_id": null,
+    "email": null
   },
-  "message": "Metadados extraídos com sucesso"
+  "files_processed": 1,
+  "ir_images": [
+    {
+      "field_name": "ir_image_0",
+      "filename": "FLIR1970.jpg",
+      "content_type": "image/jpeg",
+      "size": 245678,
+      "metadata": {
+        "celsius": [[...]],
+        "camera_metadata": {...}
+      }
+    }
+  ]
 }
 ```
 

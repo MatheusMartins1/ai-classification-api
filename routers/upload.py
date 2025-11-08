@@ -15,6 +15,8 @@ from fastapi.responses import JSONResponse
 
 from utils.logger_config import get_logger
 
+from services import data_extractor_service
+
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["upload"])
 
@@ -115,6 +117,10 @@ async def upload_inspection(
                 status_code=400,
                 detail="Pelo menos uma imagem infravermelha é obrigatória",
             )
+
+        for index, image in enumerate(processed_ir_files):
+            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["filename"],data_to_extract="complete")
+            processed_ir_files[index].update(extracted_data)
 
         # Build response
         response_data = {

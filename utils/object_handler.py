@@ -564,5 +564,4 @@ def safe_extract_attribute_with_type(
 
 
 if __name__ == "__main__":
-    # Run tests if file is executed directly
-    example_usage()
+    pass

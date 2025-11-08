@@ -2,16 +2,15 @@
 
 ## 📋 Visão Geral
 
-Este projeto utiliza **FastAPI** com **Python**, **PostgreSQL** e **Pythonnet** para integração com Flir Atlas SDK. Siga rigorosamente estas diretrizes para manter consistência e qualidade do código.
+Este projeto utiliza **FastAPI** com **Python** para extração de metadados de imagens térmicas FLIR. Siga rigorosamente estas diretrizes para manter consistência e qualidade do código.
 
 ## 🛠️ Stack Tecnológica
 - **Operational System**: Docker for production, linux in wsl for development
 - **Backend**: FastAPI 4.x
 - **Linguagem**: Python 3.12+
 - **Database**: PostgreSQL/SQLite3
-- **SDK Integration**: Pythonnet + Flir Atlas SDK 7.5
-- **Camera Management**: Flir Thermal Cameras
-- **Documentation**: Flir Atlas Live Namespace
+- **Thermal Image Processing**: flyr + OpenCV
+- **Image Analysis**: FLIR Thermal Images
 
 ## 🏗️ Estrutura de Diretórios
 
@@ -20,66 +19,50 @@ Este projeto utiliza **FastAPI** com **Python**, **PostgreSQL** e **Pythonnet** 
 ```
 ai-regression-api/
 ├── requirements.txt         # Python dependencies
+├── main.py                 # Application entry point
+├── Dockerfile              # Docker configuration
+├── docker-compose.yml      # Docker Compose configuration
 │
-├── camera/                 # Main Flir abstraction classes to use throughout the project
-│   ├── camera.py           # Core camera implementation and management
-│   ├── camera_connection.py # Camera connection and communication handling
-│   ├── camera_events.py    # Event handling system for camera operations
-│   ├── camera_mock.py      # Mock camera implementation for testing
-│   ├── camera_streaming.py # Camera streaming functionality
-│   ├── camera_ui.py        # User interface related camera functions
-│   ├── enumerations.py     # SDK enumerations and constants
-│   ├── events.py           # Event system definitions
-│   ├── image/              # Image handling and processing
-│   │   └── image.py        # Core image processing functionality
-│   ├── controls/           # Camera control implementations
-│   ├── services/           # Camera-related services
-│   ├── sensors/            # Camera sensor management
-│   ├── interfaces/         # SDK interface implementations
-│   ├── palettes/           # Thermal palette management
-│   ├── image_processing/   # Advanced image processing utilities
-│   ├── image_imports/      # Image import functionality
-│   ├── helpers/            # Utility functions for camera operations
-│   ├── fusion/             # Image fusion capabilities
-│   └── playback/           # Video playback functionality
+├── config/                 # Project configuration files
+│   └── settings.py         # Application settings
 │
-├── logs/                  # Application logs storage
+├── models/                 # Pydantic models
+│   └── image_metadata.py   # Image metadata models
 │
-├── utils/                 # Shared utilities
-│   ├── LoggerConfig.py    # Centralized logger handler
-│   ├── Other utilities    # Additional utility functions
+├── routers/                # API endpoints
+│   └── upload.py           # Upload endpoints
 │
-├── ThermalCameraLibrary/  # Flir SDK integration
+├── services/               # Business logic
+│   ├── data_extractor_service.py  # Thermal data extraction
+│   └── webhook_service.py         # Webhook notifications
 │
-├── nginx/                 # Nginx server configuration
-├── services/              # Additional service implementations
-├── files/                 # File storage and management
-├── config/                # Project configuration files
-├── test/                  # Test suite and test files
-├── serve.py              # Server startup script
-├── start.bat             # Windows startup script
-├── Dockerfile            # Docker configuration
-└── docker-compose.yml    # Docker Compose configuration
+├── utils/                  # Shared utilities
+│   ├── LoggerConfig.py     # Centralized logger handler
+│   ├── logger_config.py    # Logger utilities
+│   ├── object_handler.py   # Object manipulation utilities
+│   └── azure/              # Azure integration
+│
+├── logs/                   # Application logs storage
+├── temp/                   # Temporary file storage
+├── files/                  # File storage and management
+└── tests/                  # Test suite and test files
 ```
 
 ## 🔧 Key Components Description
 
-### 📸 Camera Module (`camera/`)
-The core module handling all Flir camera operations:
-- Complete camera lifecycle management
-- Real-time thermal image processing
-- Event-driven architecture for camera operations
-- Multiple imaging modes (thermal,visual,dual, fusion)
-- Extensive palette management for thermal visualization
-- Sensor data handling and processing
-- Mock camera support for testing
+### 📸 Services Module (`services/`)
+Core business logic for thermal image processing:
+- Thermal data extraction from FLIR images
+- Metadata parsing and structuring
+- Optical image extraction
+- Temperature matrix processing
 
 ### 🛠️ Utilities (`utils/`)
 Core utility functions and configurations:
 - Centralized logging system
-- Resource pooling management
+- Object manipulation helpers
+- Azure blob storage integration
 - Common utility functions
-- Legacy video streaming support (deprecated)
 
 ## 📝 Padrões de Código
 
@@ -193,81 +176,60 @@ Core utility functions and configurations:
 - [ ] Imports organizados conforme PEP 8
 - [ ] F-strings usadas para formatação de strings
 
-## 🎯 Contexto Específico - Flir SDK Integration
+## 🎯 Contexto Específico - Thermal Image Processing
 
-### 📡 Integração Pythonnet
+### 📡 Integração flyr
 
 ```python
 """
 Developer: Matheus Martins da Silva
 Creation Date: 11/2025
-Description: This module manages the thermal camera, including initialization, device discovery, and thermal image handling.
+Description: Service for extracting thermal and visual data from FLIR thermal images.
 Contact Email: matheus.sql18@gmail.com
-All rights reserved. This software is the property of Matheus Martins da Silva. No part of this software may be used, reproduced, distributed, or modified without the express written permission of the owner.
+All rights reserved.
 """
 
-
-import json
-import clr
 import os
+import cv2
+from typing import Dict
+import flyr
+import json
 
-from config.settings import settings
-import threading
-import time
-import numpy as np
-from PIL import Image as PILImage
-import io
-import datetime
-
-from utils import object_handler
-
-# Add the path to the directory containing the compiled DLL
-dll_path = os.path.join(settings.BASE_DIR, "ThermalCameraLibrary")
-
-clr.AddReference(os.path.join(dll_path, "ThermalCamera.dll"))
-clr.AddReference(os.path.join(dll_path, "Flir.Atlas.Live.dll"))
-clr.AddReference(os.path.join(dll_path, "Flir.Atlas.Image.dll"))
-clr.AddReference(os.path.join(dll_path, "Flir.Atlas.Gigevision.dll"))
-clr.AddReference("System")
-
-# Import the necessary classes from the assembly
-import Flir.Atlas.Live as live  # type: ignore
-import Flir.Atlas.Image as Image  # type: ignore
-import Flir.Atlas.Gigevision as Gigevision  # type: ignore
-
-import System.Drawing  # type: ignore
-from System import EventHandler  # type: ignore
-
-import camera.camera_connection as camera_connection_manager
-import camera.camera_logs as camera_log_manager
-import camera.camera_ui as camera_ui_manager
-import camera.controls.control as camera_control
-import camera.camera_streaming as camera_streaming
-import image.bitmap_handler as bitmap_handler
-
-import camera.image.image as image_handler
-from camera.services.data_extractor import DataExtractorService
-
-# import camera.image.thermal_image as thermal_image_handler
-import camera.image.alarms.alarm as alarm_handler
-import camera.image.measurements.measurements as measurements_handler
-
-class CameraManager:
+def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     """
-    The CameraManager class manages the thermal camera, including initialization, device discovery, and thermal image handling.
+    Extract thermal data and metadata from FLIR image.
+    
+    Args:
+        image_name: Name of the FLIR image file
+        
+    Returns:
+        Dictionary containing extracted metadata and thermal data
     """
-
-    # TODO: Implementar um singleton para a classe CameraManager
-    _instance = None
-    _lock = threading.Lock()
-
+    image_path = os.path.join("temp", image_name)
+    
+    # Unpack FLIR image
+    thermogram = flyr.unpack(image_path)
+    
+    # Extract thermal data
+    thermogram_data = {
+        "image_filename": image_name,
+        "image_path": image_path,
+        "celsius": thermogram.celsius.tolist(),
+        "metadata": thermogram.metadata,
+        "camera_metadata": thermogram.camera_metadata,
+    }
+    
+    # Save optical image
+    thermogram.optical_pil.save(os.path.join("temp", f"{image_name}_optical.jpg"))
+    
+    return thermogram_data
 ```
 
-### 🌡️ Documentação SDK
+### 🌡️ Documentação
 
-- **SDK Reference**: https://update2flir2se.blob.core.windows.net/update/SSF/Atlas%20Cronos/docs/7.5.0/html/index.html
-- **Live Namespace**: https://update2flir2se.blob.core.windows.net/update/SSF/Atlas%20Cronos/docs/7.5.0/html/namespace_flir_1_1_atlas_1_1_live.html
-- **Environment**: Windows 10 64-bit, Ubuntu Server, Docker, Chrome, Flir Cameras
+- **flyr Library**: https://pypi.org/project/flyr/
+- **OpenCV**: https://opencv.org/
+- **Environment**: Docker, Linux, Windows
 
 ---
 
@@ -280,5 +242,5 @@ class CameraManager:
 - **Código** em inglês, **output** em português
 - **FastAPI** best practices sempre
 - **PEP compliance** rigoroso
-- **Flir SDK** integration seguindo padrões pythonnet
+- **Thermal Processing** usando flyr + OpenCV
 - Siga estas diretrizes **rigorosamente** para manter a excelência do projeto Tenesso

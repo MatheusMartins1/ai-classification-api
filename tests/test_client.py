@@ -67,7 +67,6 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
                 "http://localhost:8345/api/v1/upload-inspection",
                 files=files,
                 data=data,
-                timeout=30,
             )
 
         response_json = response.json()
