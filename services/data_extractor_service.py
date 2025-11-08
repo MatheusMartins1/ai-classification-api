@@ -39,42 +39,48 @@ logger = LoggerConfig.add_file_logger(
 
 
 def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
-    image_path = os.path.join("temp", image_name)
-    image_filename = image_name.split(".")[0]
+    image_name_splited = image_name.split(".")
+    image_filename = image_name_splited[0]
+    image_folder = os.path.join("temp", image_filename)
+    os.makedirs(os.path.join("temp", image_filename), exist_ok=True)
 
-    thermogram = flyr.unpack(image_path)
     # Initialize data structure
     thermogram_data = {
         "image_filename": image_filename,
-        "image_path": image_path,
+        "image_folder": image_folder,
+        "image_extension": image_name_splited[1],
+        "image_saved_ir_filename": f"{image_name_splited[0]}_IR.{image_name_splited[1]}",
+        "image_saved_real_filename": f"{image_name_splited[0]}_REAL.{image_name_splited[1]}",
     }
 
+    thermogram = flyr.unpack(os.path.join(image_folder, thermogram_data["image_saved_ir_filename"]))
+
     # Extract all thermogram attributes automatically
-    print("Extracting all thermogram attributes...")
+    logger.info("Extracting all thermogram attributes...")
     try:
         all_data = extract_all_attributes(thermogram, "thermogram")
         thermogram_data.update(all_data)
 
     except Exception as e:
-        print(f"Error extracting thermogram data: {e}")
+        logger.info(f"Error extracting thermogram data: {e}")
         celsius_array = None
 
     celsius_array = thermogram_data.get("celsius", None)
     temperature_df = pd.DataFrame(celsius_array)
     temperature_dict = temperature_df.to_dict(orient="records")
     temperature_df.to_csv(
-        os.path.join("temp", f"{image_filename}_temperature.csv"), index=False
+        os.path.join(image_folder, f"{image_filename}_temperature.csv"), index=False
     )
     temperature_df.to_json(
-        os.path.join("temp", f"{image_filename}_temperature.json"), orient="records"
+        os.path.join(image_folder, f"{image_filename}_temperature.json"), orient="records"
     )
 
     # Save Optical image to temp folder
-    thermogram.optical_pil.save(os.path.join("temp", f"{image_filename}_optical.jpg"))
+    thermogram.optical_pil.save(os.path.join(image_folder, f"{image_filename}_REAL.jpg"))
 
     image_metadata = {
         "image_filename": thermogram_data.get("image_filename", None),
-        "image_path": thermogram_data.get("image_path", None),
+        "image_folder": thermogram_data.get("image_folder", None),
         "metadata": thermogram_data.get("metadata", None),
         "camera_metadata": thermogram_data.get("camera_metadata", None),
         "palette": thermogram_data.get("palette", None),
@@ -83,7 +89,7 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     }
 
     # save json file
-    json_filename = os.path.join("temp", f"{image_filename}_metadata.json")
+    json_filename = os.path.join(image_folder, f"{image_filename}_metadata.json")
     with open(json_filename, "w", encoding="utf-8") as json_file:
         json.dump(image_metadata, json_file, indent=2, ensure_ascii=False)
 
@@ -167,13 +173,22 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
                                 else:
                                     result[attr] = str(value)
                 except Exception as e:
-                    print(f"Warning: Could not extract {attr} from {description}: {e}")
+                    logger.info(f"Warning: Could not extract {attr} from {description}: {e}")
                     continue
     except Exception as e:
-        print(f"Warning: Could not iterate attributes of {description}: {e}")
+        logger.info(f"Warning: Could not iterate attributes of {description}: {e}")
         return str(obj)
 
     return result
+
+
+async def send_data_to_database(response_data: dict):
+    try:
+        # Send data to database
+        logger.info(f"Sending data to database: {response_data}")
+    except Exception as e:
+        logger.error(f"Error sending data to database: {e}")
+        raise e
 
 
 if __name__ == "__main__":

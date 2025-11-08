@@ -6,18 +6,26 @@ Contact Email: matheus.sql18@gmail.com
 All rights reserved.
 """
 
+import asyncio
 import os
+import shutil
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
-from utils.logger_config import get_logger
+from utils.LoggerConfig import LoggerConfig
+logger = LoggerConfig.add_file_logger(
+    name="upload_router",
+    filename=None,
+    dir_name=None,
+    prefix="upload",
+    level_name="INFO",
+)
 
 from services import data_extractor_service
 
-logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["upload"])
 
 # Ensure temp directory exists
@@ -90,25 +98,31 @@ async def upload_inspection(
                     # TODO: Sobrescrevo a imagem ou mantenho um contador de imagens?
                     # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     original_filename = ir_file.filename or "image.jpg"
-                    saved_filename = f"{original_filename}"
-                    file_path = os.path.join(TEMP_DIR, original_filename)
+                    image_name_splited = original_filename.split(".")
+                    saved_filename = f"{image_name_splited[0]}_IR.{image_name_splited[1]}"
+                    image_folder = os.path.join(TEMP_DIR, image_name_splited[0])
+                    image_full_path = os.path.join(image_folder, saved_filename)
+                    if os.path.exists(image_folder):
+                        shutil.rmtree(image_folder)
+                    os.makedirs(image_folder, exist_ok=True)
 
                     # Save image to temporary folder
-                    with open(file_path, "wb") as f:
+                    with open(image_full_path, "wb") as f:
                         f.write(file_bytes)
 
                     processed_ir_files.append(
                         {
                             "field_name": field_name,
-                            "filename": ir_file.filename,
+                            "filename": saved_filename,
+                            "image_name": original_filename,
                             "content_type": ir_file.content_type,
                             "size": file_size,
                         }
                     )
 
                     logger.info(
-                        f"Processado arquivo IR [{field_name}]: {ir_file.filename} "
-                        f"({file_size} bytes) -> Salvo em: {file_path}"
+                        f"Processado arquivo IR [{field_name}]: {saved_filename} "
+                        f"({file_size} bytes) -> Salvo em: {image_full_path}"
                     )
 
         # Validate that we have at least one IR image
@@ -119,7 +133,7 @@ async def upload_inspection(
             )
 
         for index, image in enumerate(processed_ir_files):
-            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["filename"])
+            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["image_name"])
             processed_ir_files[index].update(extracted_data)
 
         # Build response
@@ -139,6 +153,10 @@ async def upload_inspection(
             f"Upload concluído com sucesso - User: {user_id}, "
             f"Total imagens IR: {len(processed_ir_files)}"
         )
+
+        #Send data to database without waiting for the response
+        # asyncio.run(data_extractor_service.send_data_to_database(response_data))
+        # logger.info(f"Dados enviados para o banco de dados")
 
         return JSONResponse(status_code=200, content=response_data)
 
