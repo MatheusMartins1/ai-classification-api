@@ -11,9 +11,15 @@ from typing import Any, Dict, List, Optional
 
 from supabase import Client, create_client
 
-from utils.logger_config import get_logger
+from utils.LoggerConfig import LoggerConfig
 
-logger = get_logger(__name__)
+logger = LoggerConfig.add_file_logger(
+    name="supabase_client",
+    filename=None,
+    dir_name=None,
+    prefix="supabase",
+    level_name="INFO",
+)
 
 
 class SupabaseService:
@@ -38,12 +44,12 @@ class SupabaseService:
             ValueError: When credentials are missing
         """
         self._url = supabase_url or os.getenv("SUPABASE_URL")
-        self._key = supabase_key or os.getenv("SUPABASE_KEY")
+        self._key = supabase_key or os.getenv("SUPABASE_SERVICE_KEY")
 
         if not self._url or not self._key:
             raise ValueError(
                 "Supabase credentials not provided. "
-                "Set SUPABASE_URL and SUPABASE_KEY environment variables"
+                "Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables"
             )
 
         self._client: Client = create_client(self._url, self._key)
@@ -66,6 +72,7 @@ class SupabaseService:
         file_path: str,
         file_data: bytes,
         content_type: Optional[str] = None,
+        if_exists: Optional[str] = "overwrite",
     ) -> str:
         """
         Upload file to Supabase Storage.
@@ -84,11 +91,28 @@ class SupabaseService:
         """
         options = {"content-type": content_type} if content_type else {}
 
-        response = self._client.storage.from_(bucket_name).upload(
-            file_path, file_data, file_options=options
-        )
+        if if_exists == "overwrite":
+            try:
+                self.delete_file(bucket_name, file_path)
+            except Exception as e:
+                logger.error(f"Error deleting file: {e}")
+                raise e
+        elif if_exists == "skip":
+            try:
+                if self.get_public_url(bucket_name, file_path):
+                    return self.get_public_url(bucket_name, file_path)
+            except Exception as e:
+                logger.error(f"Error checking if file exists: {e}")
+                raise e
 
-        return self.get_public_url(bucket_name, file_path)
+        try:
+            response = self._client.storage.from_(bucket_name).upload(
+                file_path, file_data, file_options=options
+            )
+            return self.get_public_url(bucket_name, file_path)
+        except Exception as e:
+            logger.error(f"Error uploading file: {e}")
+            raise e
 
     def download_file(self, bucket_name: str, file_path: str) -> bytes:
         """

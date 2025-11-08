@@ -16,6 +16,7 @@ from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from utils.LoggerConfig import LoggerConfig
+
 logger = LoggerConfig.add_file_logger(
     name="upload_router",
     filename=None,
@@ -99,7 +100,9 @@ async def upload_inspection(
                     # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     original_filename = ir_file.filename or "image.jpg"
                     image_name_splited = original_filename.split(".")
-                    saved_filename = f"{image_name_splited[0]}_IR.{image_name_splited[1]}"
+                    saved_filename = (
+                        f"{image_name_splited[0]}_IR.{image_name_splited[1]}"
+                    )
                     image_folder = os.path.join(TEMP_DIR, image_name_splited[0])
                     image_full_path = os.path.join(image_folder, saved_filename)
                     if os.path.exists(image_folder):
@@ -133,7 +136,9 @@ async def upload_inspection(
             )
 
         for index, image in enumerate(processed_ir_files):
-            extracted_data = data_extractor_service.extract_data_from_image(image_name=image["image_name"])
+            extracted_data = data_extractor_service.extract_data_from_image(
+                image_name=image["image_name"]
+            )
             processed_ir_files[index].update(extracted_data)
 
         # Build response
@@ -153,10 +158,13 @@ async def upload_inspection(
             f"Upload concluído com sucesso - User: {user_id}, "
             f"Total imagens IR: {len(processed_ir_files)}"
         )
-
-        #Send data to database without waiting for the response
-        # asyncio.run(data_extractor_service.send_data_to_database(response_data))
-        # logger.info(f"Dados enviados para o banco de dados")
+        try:
+            # Send data to database without waiting for the response
+            asyncio.create_task(data_extractor_service.send_data_to_database(response_data))
+            logger.info(f"Dados enviados para o banco de dados")
+        except Exception as e:
+            logger.error(f"Erro ao enviar dados para o banco de dados: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao enviar dados para o banco de dados: {e}")
 
         return JSONResponse(status_code=200, content=response_data)
 
@@ -164,6 +172,4 @@ async def upload_inspection(
         raise
     except Exception as e:
         logger.error(f"Erro ao processar upload: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao processar arquivos:"
-        )
+        raise HTTPException(status_code=500, detail=f"Erro ao processar arquivos:")

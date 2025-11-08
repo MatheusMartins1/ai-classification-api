@@ -6,15 +6,16 @@ Contact Email: matheus.sql18@gmail.com
 All rights reserved. This software is the property of Matheus Martins da Silva.
 """
 
+import asyncio
+import json
 import os
 import subprocess
 import sys
-import cv2
 from typing import Any, Dict, Optional, Union
-import flyr
-import json
-import pandas as pd
 
+import cv2
+import flyr
+import pandas as pd
 from pydantic_core.core_schema import none_schema
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,6 +29,7 @@ settings = settings_module.settings
 
 from utils import object_handler
 from utils.LoggerConfig import LoggerConfig
+from utils.supabase_client import SupabaseService
 
 logger = LoggerConfig.add_file_logger(
     name="image_data_extractor",
@@ -46,14 +48,21 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
 
     # Initialize data structure
     thermogram_data = {
-        "image_filename": image_filename,
-        "image_folder": image_folder,
-        "image_extension": image_name_splited[1],
-        "image_saved_ir_filename": f"{image_name_splited[0]}_IR.{image_name_splited[1]}",
-        "image_saved_real_filename": f"{image_name_splited[0]}_REAL.{image_name_splited[1]}",
+        "storage_info": {
+            "image_filename": image_filename,
+            "image_folder": image_folder,
+            "image_extension": image_name_splited[1],
+            "image_saved_ir_filename": f"{image_name_splited[0]}_IR.{image_name_splited[1]}",
+            "image_saved_real_filename": f"{image_name_splited[0]}_REAL.{image_name_splited[1]}",
+        }
     }
 
-    thermogram = flyr.unpack(os.path.join(image_folder, thermogram_data["image_saved_ir_filename"]))
+    thermogram = flyr.unpack(
+        os.path.join(
+            image_folder,
+            thermogram_data.get("storage_info", {}).get("image_saved_ir_filename", ""),
+        )
+    )
 
     # Extract all thermogram attributes automatically
     logger.info("Extracting all thermogram attributes...")
@@ -72,15 +81,17 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         os.path.join(image_folder, f"{image_filename}_temperature.csv"), index=False
     )
     temperature_df.to_json(
-        os.path.join(image_folder, f"{image_filename}_temperature.json"), orient="records"
+        os.path.join(image_folder, f"{image_filename}_temperature.json"),
+        orient="records",
     )
 
     # Save Optical image to temp folder
-    thermogram.optical_pil.save(os.path.join(image_folder, f"{image_filename}_REAL.jpg"))
+    thermogram.optical_pil.save(
+        os.path.join(image_folder, f"{image_filename}_REAL.jpg")
+    )
 
     image_metadata = {
-        "image_filename": thermogram_data.get("image_filename", None),
-        "image_folder": thermogram_data.get("image_folder", None),
+        "storage_info": thermogram_data.get("storage_info", {}),
         "metadata": thermogram_data.get("metadata", None),
         "camera_metadata": thermogram_data.get("camera_metadata", None),
         "palette": thermogram_data.get("palette", None),
@@ -173,7 +184,9 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
                                 else:
                                     result[attr] = str(value)
                 except Exception as e:
-                    logger.info(f"Warning: Could not extract {attr} from {description}: {e}")
+                    logger.info(
+                        f"Warning: Could not extract {attr} from {description}: {e}"
+                    )
                     continue
     except Exception as e:
         logger.info(f"Warning: Could not iterate attributes of {description}: {e}")
@@ -183,12 +196,47 @@ def extract_all_attributes(obj, description="", max_depth=3, current_depth=0):
 
 
 async def send_data_to_database(response_data: dict):
-    try:
-        # Send data to database
-        logger.info(f"Sending data to database: {response_data}")
-    except Exception as e:
-        logger.error(f"Error sending data to database: {e}")
-        raise e
+    """
+    Save files into supabase storage
+    """
+    supabase_service = SupabaseService()
+    supabase_client = supabase_service.client
+    bucket_name = "imagem"
+    files = ["image_saved_ir_filename", "image_saved_real_filename"]
+
+    for index, image in enumerate(response_data["ir_images"]):
+        storage_info = image.get("metadata", {}).get("storage_info", {})
+        image_path = os.path.join(storage_info.get("image_folder", ""))
+
+        for file in files:
+            file_path = "/".join(
+                [
+                    "companies",
+                    response_data.get("user_info", {}).get("company_id", ""),
+                    storage_info.get("image_filename", ""),
+                    storage_info.get(file, ""),
+                ]
+            )
+
+            file_data = open(
+                os.path.join(image_path, storage_info.get(file, "")),
+                "rb",
+            ).read()
+
+            content_type = image["content_type"]
+            try:
+                #TODO: Check what happens if multiple files are uploaded at the same time
+                await asyncio.to_thread(
+                    supabase_service.upload_file,
+                    bucket_name=bucket_name,
+                    file_path=file_path,
+                    file_data=file_data,
+                    content_type=content_type,
+                    if_exists="overwrite",
+                )
+            except Exception as e:
+                logger.error(f"Error uploading file: {e}")
+                raise e
 
 
 if __name__ == "__main__":

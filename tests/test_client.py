@@ -60,7 +60,8 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
             files = {"ir_image_0": (filename, f, "image/jpeg")}
             data = {
                 "user_id": user_id,
-                "company_id": "test_company_456",
+                # "company_id": "22222222-2222-2222-2222-222222222222",
+                "company_id": "11111111-1111-1111-1111-111111111111",
                 "email": "test@tenesso.com",
             }
             response = requests.post(
