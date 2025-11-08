@@ -9,6 +9,7 @@ All rights reserved. This software is the property of Matheus Martins da Silva.
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 import sys
 from typing import Any, Dict, Optional, Union
@@ -204,6 +205,8 @@ async def send_data_to_database(response_data: dict):
     bucket_name = "imagem"
     files = ["image_saved_ir_filename", "image_saved_real_filename"]
 
+    task_success = []
+
     for index, image in enumerate(response_data["ir_images"]):
         storage_info = image.get("metadata", {}).get("storage_info", {})
         image_path = os.path.join(storage_info.get("image_folder", ""))
@@ -234,10 +237,65 @@ async def send_data_to_database(response_data: dict):
                     content_type=content_type,
                     if_exists="overwrite",
                 )
+                task_success.append(True)
             except Exception as e:
                 logger.error(f"Error uploading file: {e}")
+                task_success.append(False)
                 raise e
+        
+        try:
+            file_name = f"{storage_info.get("image_filename", "")}_temperature.csv"
+            #Send temperature.csv to storage
+            temperature_csv_path = "/".join([
+                "companies",
+                response_data.get("user_info", {}).get("company_id", ""),
+                storage_info.get("image_filename", ""),
+                file_name,
+            ])
+            file_data = open(os.path.join(image_path, file_name), "rb").read()
+            await asyncio.to_thread(
+                supabase_service.upload_file,
+                bucket_name=bucket_name,
+                file_path=temperature_csv_path,
+                file_data=file_data,
+                if_exists="overwrite",
+            )
+            task_success.append(True)
+        except Exception as e:
+            logger.error(f"Error uploading temperature.csv: {e}")
+            task_success.append(False)
+            raise e
 
+        try:
+            file_name = f"{storage_info.get("image_filename", "")}_temperature.json"
+            #Send temperature.json to storage
+            temperature_json_path = "/".join([
+                "companies",
+                response_data.get("user_info", {}).get("company_id", ""),
+                storage_info.get("image_filename", ""),
+                file_name,
+            ])
+            file_data = open(os.path.join(image_path, file_name), "rb").read()
+            await asyncio.to_thread(
+                supabase_service.upload_file,
+                bucket_name=bucket_name,
+                file_path=temperature_json_path,
+                file_data=file_data,
+                if_exists="overwrite",
+            )
+            task_success.append(True)
+        except Exception as e:
+            logger.error(f"Error uploading temperature.json: {e}")
+            task_success.append(False)
+            raise e
+
+    if all(task_success):
+        #remove temp folder
+        shutil.rmtree(image_path)
+        return True
+    else:
+        #TODO: Reprocess the image
+        return False
 
 if __name__ == "__main__":
     extract_data_from_image()
