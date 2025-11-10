@@ -9,7 +9,7 @@ All rights reserved.
 import asyncio
 import os
 import shutil
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from utils.LoggerConfig import LoggerConfig
 from utils.supabase_client import SupabaseService
@@ -52,214 +52,107 @@ class SupabaseStorageHandler:
         Raises:
             Exception: If upload fails
         """
-        files_to_upload = ["image_saved_ir_filename", "image_saved_real_filename"]
         task_success = []
 
-        for index, image in enumerate(response_data["ir_images"]):
+        for image in response_data["ir_images"]:
             storage_info = image.get("metadata", {}).get("storage_info", {})
-            image_path = os.path.join(storage_info.get("image_folder", ""))
+            local_folder = storage_info.get("image_folder", "")
+            company_id = response_data.get("user_info", {}).get("company_id", "")
+            image_filename = storage_info.get("image_filename", "")
+            content_type = image.get("content_type")
 
             # Upload IR and Real images
-            for file in files_to_upload:
-                success = await self._upload_image_file(
-                    response_data=response_data,
-                    storage_info=storage_info,
-                    image_path=image_path,
-                    file_key=file,
-                    content_type=image["content_type"],
+            files_to_upload = [
+                storage_info.get("image_saved_ir_filename", ""),
+                storage_info.get("image_saved_real_filename", ""),
+            ]
+
+            for filename in files_to_upload:
+                success = await self._upload_file(
+                    local_folder=local_folder,
+                    filename=filename,
+                    company_id=company_id,
+                    image_filename=image_filename,
+                    content_type=content_type,
                 )
                 task_success.append(success)
 
-            # Upload temperature CSV
-            success = await self._upload_temperature_file(
-                response_data=response_data,
-                storage_info=storage_info,
-                image_path=image_path,
-                file_extension="csv",
-            )
-            task_success.append(success)
-
-            # Upload temperature JSON
-            success = await self._upload_temperature_file(
-                response_data=response_data,
-                storage_info=storage_info,
-                image_path=image_path,
-                file_extension="json",
-            )
-            task_success.append(success)
+            # Upload temperature files
+            for extension in ["csv", "json"]:
+                filename = f"{image_filename}_temperature.{extension}"
+                success = await self._upload_file(
+                    local_folder=local_folder,
+                    filename=filename,
+                    company_id=company_id,
+                    image_filename=image_filename,
+                )
+                task_success.append(success)
 
             # Upload metadata JSON
-            success = await self._upload_metadata_file(
-                response_data=response_data,
-                storage_info=storage_info,
-                image_path=image_path,
+            filename_metadata = f"{image_filename}_metadata.json"
+            success = await self._upload_file(
+                local_folder=local_folder,
+                filename=filename_metadata,
+                company_id=company_id,
+                image_filename=image_filename,
             )
             task_success.append(success)
+
 
         if all(task_success):
             # Remove temp folder after successful upload
-            shutil.rmtree(image_path)
-            logger.info(f"Successfully uploaded all files and cleaned temp folder: {image_path}")
+            shutil.rmtree(local_folder)
+            logger.info(
+                f"Successfully uploaded all files and cleaned temp folder: {local_folder}"
+            )
             return True
         else:
             logger.error("Some uploads failed. Temp folder not removed.")
             return False
 
-    async def _upload_image_file(
+    async def _upload_file(
         self,
-        response_data: Dict[str, Any],
-        storage_info: Dict[str, str],
-        image_path: str,
-        file_key: str,
-        content_type: str,
+        local_folder: str,
+        filename: str,
+        company_id: str,
+        image_filename: str,
+        content_type: Optional[str] = None,
     ) -> bool:
         """
-        Upload a single image file to storage.
+        Upload a single file to Supabase storage.
 
         Args:
-            response_data: Response data containing user info
-            storage_info: Storage information dictionary
-            image_path: Local path to the image
-            file_key: Key to get filename from storage_info
-            content_type: MIME type of the file
+            local_folder: Local folder where file is stored
+            filename: Name of the file to upload
+            company_id: Company ID for storage path
+            image_filename: Image filename for storage path
+            content_type: Optional MIME type of the file
 
         Returns:
             True if upload succeeds, False otherwise
         """
         try:
-            file_path = self._build_storage_path(
-                response_data=response_data,
-                storage_info=storage_info,
-                filename=storage_info.get(file_key, ""),
-            )
+            # Build storage path
+            storage_path = "/".join(["companies", company_id, image_filename, filename])
 
-            file_data = open(
-                os.path.join(image_path, storage_info.get(file_key, "")),
-                "rb",
-            ).read()
+            # Read file data
+            local_file_path = os.path.join(local_folder, filename)
+            with open(local_file_path, "rb") as f:
+                file_data = f.read()
 
+            # Upload to Supabase
             await asyncio.to_thread(
                 self.supabase_service.upload_file,
                 bucket_name=self.bucket_name,
-                file_path=file_path,
+                file_path=storage_path,
                 file_data=file_data,
                 content_type=content_type,
                 if_exists="overwrite",
             )
-            logger.info(f"Successfully uploaded: {file_path}")
+
+            logger.info(f"Successfully uploaded: {storage_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Error uploading file {file_key}: {e}")
+            logger.error(f"Error uploading file {filename}: {e}")
             return False
-
-    async def _upload_temperature_file(
-        self,
-        response_data: Dict[str, Any],
-        storage_info: Dict[str, str],
-        image_path: str,
-        file_extension: str,
-    ) -> bool:
-        """
-        Upload temperature data file (CSV or JSON) to storage.
-
-        Args:
-            response_data: Response data containing user info
-            storage_info: Storage information dictionary
-            image_path: Local path to the file
-            file_extension: File extension (csv or json)
-
-        Returns:
-            True if upload succeeds, False otherwise
-        """
-        try:
-            file_name = f"{storage_info.get('image_filename', '')}_temperature.{file_extension}"
-            file_path = self._build_storage_path(
-                response_data=response_data,
-                storage_info=storage_info,
-                filename=file_name,
-            )
-
-            file_data = open(os.path.join(image_path, file_name), "rb").read()
-
-            await asyncio.to_thread(
-                self.supabase_service.upload_file,
-                bucket_name=self.bucket_name,
-                file_path=file_path,
-                file_data=file_data,
-                if_exists="overwrite",
-            )
-            logger.info(f"Successfully uploaded: {file_path}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error uploading temperature.{file_extension}: {e}")
-            return False
-
-    async def _upload_metadata_file(
-        self,
-        response_data: Dict[str, Any],
-        storage_info: Dict[str, str],
-        image_path: str,
-    ) -> bool:
-        """
-        Upload metadata JSON file to storage.
-
-        Args:
-            response_data: Response data containing user info
-            storage_info: Storage information dictionary
-            image_path: Local path to the file
-
-        Returns:
-            True if upload succeeds, False otherwise
-        """
-        try:
-            file_name = f"{storage_info.get('image_filename', '')}_metadata.json"
-            file_path = self._build_storage_path(
-                response_data=response_data,
-                storage_info=storage_info,
-                filename=file_name,
-            )
-
-            file_data = open(os.path.join(image_path, file_name), "rb").read()
-
-            await asyncio.to_thread(
-                self.supabase_service.upload_file,
-                bucket_name=self.bucket_name,
-                file_path=file_path,
-                file_data=file_data,
-                if_exists="overwrite",
-            )
-            logger.info(f"Successfully uploaded: {file_path}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error uploading metadata.json: {e}")
-            return False
-
-    def _build_storage_path(
-        self,
-        response_data: Dict[str, Any],
-        storage_info: Dict[str, str],
-        filename: str,
-    ) -> str:
-        """
-        Build storage path for file upload.
-
-        Args:
-            response_data: Response data containing user info
-            storage_info: Storage information dictionary
-            filename: Name of the file
-
-        Returns:
-            Storage path string
-        """
-        return "/".join(
-            [
-                "companies",
-                response_data.get("user_info", {}).get("company_id", ""),
-                storage_info.get("image_filename", ""),
-                filename,
-            ]
-        )
-

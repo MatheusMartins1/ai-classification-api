@@ -73,6 +73,7 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
                 "email": "test@tenesso.com",
             }
             headers = {"X-API-Key": api_key}
+            
             response = requests.post(
                 "http://localhost:8345/api/v1/upload-inspection",
                 files=files,
@@ -111,6 +112,7 @@ if __name__ == "__main__":
     else:
         # Default image path
         image_path = "files/FLIR1970.jpg"
+        image_path = "files/FLIR2856.jpg"
 
     test_upload_inspection(image_path)
 

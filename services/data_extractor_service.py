@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional, Union
 
 import cv2
 import flyr  # type: ignore
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 from pydantic_core.core_schema import none_schema
 
@@ -27,6 +28,7 @@ settings = settings_module.settings
 
 from services.supabase_handler import SupabaseStorageHandler
 from utils import object_handler
+from utils import temperature_calculations as thermal_calculations
 from utils.LoggerConfig import LoggerConfig
 from utils.object_handler import extract_all_attributes
 
@@ -75,18 +77,39 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         celsius_array = None
 
     celsius_array = thermogram_data.get("celsius", None)
-    temperature_df = pd.DataFrame(celsius_array)
-    temperature_dict = temperature_df.to_dict(orient="records")
-    temperature_df.to_csv(
-        os.path.join(image_folder, f"{image_filename}_temperature.csv"), index=False
-    )
-    temperature_df.to_json(
-        os.path.join(image_folder, f"{image_filename}_temperature.json"),
-        orient="records",
-    )
-    measurements = extract_measurements(thermogram)
 
-    # save
+    # Initialize default values
+    temperature_dict: list = []
+    calculations: dict = {}
+
+    if celsius_array is not None and isinstance(celsius_array, list):
+        temperature_df = pd.DataFrame(celsius_array)
+        temperature_dict = temperature_df.to_dict(orient="records")
+        temperature_df.to_csv(
+            os.path.join(image_folder, f"{image_filename}_temperature.csv"), index=False
+        )
+        temperature_df.to_json(
+            os.path.join(image_folder, f"{image_filename}_temperature.json"),
+            orient="records",
+        )
+        temperature_array = np.array(celsius_array)
+
+        # Calculate temperature statistics
+        min_temp = thermal_calculations.get_min_from_temperature_array(temperature_array)  # type: ignore
+        max_temp = thermal_calculations.get_max_from_temperature_array(temperature_array)  # type: ignore
+
+        calculations = {
+            "min_temperature": min_temp,
+            "max_temperature": max_temp,
+            "avg_temperature": thermal_calculations.get_average_from_temperature_array(temperature_array),  # type: ignore
+            "median_temperature": thermal_calculations.get_median_from_temperature_array(temperature_array),  # type: ignore
+            "standard_deviation": thermal_calculations.get_standard_deviation_from_temperature_array(temperature_array),  # type: ignore
+            "variance": thermal_calculations.get_variance_from_temperature_array(temperature_array),  # type: ignore
+            "delta_t": thermal_calculations.generate_delta(min_temp, max_temp),
+            # "mta": thermal_calculations.get_mta(),
+        }
+
+    measurements = extract_measurements(thermogram)
 
     # Save Optical image to temp folder
     thermogram.optical_pil.save(
@@ -97,9 +120,11 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         "storage_info": thermogram_data.get("storage_info", {}),
         "metadata": thermogram_data.get("metadata", None),
         "camera_metadata": thermogram_data.get("camera_metadata", None),
-        # "palette": thermogram_data.get("palette", None),
         "pip_info": thermogram_data.get("pip_info", None),
-        # "temperature_json": temperature_dict,
+        "palette": thermogram_data.get("palette", None),
+        "temperature_json": temperature_dict,
+        "measurements": measurements,
+        "calculations": calculations,
     }
 
     # NS câmera - X

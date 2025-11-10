@@ -1,0 +1,16 @@
+- [ ] Converter as temperaturas em °C
+- [ ] Instalar o exiftools
+  - [ ] Extrair n de serie da camera
+  - [ ] Ver se tem o DeltaT
+- [ ] Extrair os measurenments
+  - [ ] Entender as coordenadas
+  - [ ] Entender tipos de measurements
+- [ ] Fazer os calculos com numpy
+- [ ] Integrar o temperature_calculations
+- [ ] Padronizar campos com banco da paty
+- [ ] Salvar no banco
+  - [ ] Integrar a TAG do banco
+- [ ] Extrair ir_window_temperature
+- [ ] Extrair ir_window_transmission
+- [ ] Extrair temperature_range
+- [ ] Dividir a imagem em quadrantes
