@@ -161,16 +161,23 @@ async def upload_inspection(
             f"Total imagens IR: {len(processed_ir_files)}"
         )
         try:
-            # Send data to database without waiting for the response
+            # Send data to storage and database without waiting for the response
             asyncio.create_task(
                 data_extractor_service.send_data_to_storage(response_data)
             )
+            logger.info(f"Dados enviados para o storage")
+
+            # Send data to database
+            from services.supabase_handler import SupabaseStorageHandler
+
+            storage_handler = SupabaseStorageHandler()
+            asyncio.create_task(storage_handler.send_data_to_database(response_data))
             logger.info(f"Dados enviados para o banco de dados")
         except Exception as e:
-            logger.error(f"Erro ao enviar dados para o banco de dados: {e}")
+            logger.error(f"Erro ao enviar dados: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Erro ao enviar dados para o banco de dados: {e}",
+                detail=f"Erro ao enviar dados: {e}",
             )
 
         return JSONResponse(status_code=200, content=response_data)
