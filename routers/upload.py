@@ -163,7 +163,7 @@ async def upload_inspection(
         try:
             # Send data to database without waiting for the response
             asyncio.create_task(
-                data_extractor_service.send_data_to_database(response_data)
+                data_extractor_service.send_data_to_storage(response_data)
             )
             logger.info(f"Dados enviados para o banco de dados")
         except Exception as e:
