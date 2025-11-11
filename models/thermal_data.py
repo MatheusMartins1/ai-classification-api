@@ -25,8 +25,13 @@ class StorageInfo(BaseModel):
 
 class FlyrMetadata(BaseModel):
     """Metadata extracted from FLIR thermal image using flyr library."""
-    temperature_unit: Optional[str] = Field("°C", description="Temperature unit",example=["°C", "°F", "K"])
-    temperature_unit_original: Optional[str] = Field("K", description="Temperature unit original",example=["K", "°C", "°F"])
+
+    temperature_unit: Optional[str] = Field(
+        default="°C", description="Temperature unit"
+    )
+    temperature_unit_original: Optional[str] = Field(
+        default="K", description="Temperature unit original"
+    )
     emissivity: Optional[float] = Field(None, description="Surface emissivity")
     reflected_apparent_temperature: Optional[float] = Field(
         None, description="Reflected apparent temperature"
@@ -96,21 +101,27 @@ class ExifToolMetadata(BaseModel):
         None, description="Raw EXIF metadata dictionary"
     )
 
+
 class Measurement(BaseModel):
-    """Measurement data from thermal image."""
-    #TODO: Implement this
-    type: Optional[str] = Field(None, description="Measurement type",example=["BOX","DOT","LINE","RECTANGLE"])
+    """
+    Measurement data from thermal image.
+    Based on flyr.measurement_info.Measurement class.
+    """
+
+    type: Optional[str] = Field(
+        None,
+        description="Measurement type (SPOT, AREA, LINE, RECTANGLE, ELLIPSE, CIRCLE, POLYGON)",
+    )
     x: Optional[int] = Field(None, description="X coordinate")
     y: Optional[int] = Field(None, description="Y coordinate")
     width: Optional[int] = Field(None, description="Width")
     height: Optional[int] = Field(None, description="Height")
-    temperature: Optional[float] = Field(None, description="Temperature")
+    temperature: Optional[float] = Field(None, description="Temperature in Celsius")
     color: Optional[str] = Field(None, description="Color")
     label: Optional[str] = Field(None, description="Label")
     description: Optional[str] = Field(None, description="Description")
     notes: Optional[str] = Field(None, description="Notes")
-    created_at: Optional[str] = Field(None, description="Created at")
-    updated_at: Optional[str] = Field(None, description="Updated at")
+
 
 class TemperatureData(BaseModel):
     """Temperature matrix data from thermal image."""
@@ -130,9 +141,7 @@ class TemperatureData(BaseModel):
     median_temperature: Optional[float] = Field(
         None, description="Median temperature in image"
     )
-    delta_t: Optional[float] = Field(
-        None, description="Delta T in image"
-    )
+    delta_t: Optional[float] = Field(None, description="Delta T in image")
 
 
 class PipInfo(BaseModel):
@@ -143,10 +152,13 @@ class PipInfo(BaseModel):
     pip_width: Optional[int] = Field(None, description="PIP width")
     pip_height: Optional[int] = Field(None, description="PIP height")
 
+
 class PaletteInfo(BaseModel):
     """Palette information if available."""
+
     # TODO: Implement this
     pass
+
 
 class ThermalImageData(BaseModel):
     """
@@ -166,6 +178,9 @@ class ThermalImageData(BaseModel):
     )
     temperature_data: Optional[TemperatureData] = Field(
         None, description="Temperature matrix data"
+    )
+    measurements: Optional[List[Measurement]] = Field(
+        None, description="List of measurements from thermal image"
     )
     pip_info: Optional[PipInfo] = Field(
         None, description="Picture-in-Picture information"

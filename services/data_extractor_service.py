@@ -26,6 +26,7 @@ from config import settings as settings_module
 # settings_module.settings = settings_module.Settings(base_dir=base_dir)
 settings = settings_module.settings
 
+from services.measurement_extractor import MeasurementExtractor
 from services.supabase_handler import SupabaseStorageHandler
 from utils import object_handler
 from utils import temperature_calculations as thermal_calculations
@@ -136,6 +137,7 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     # Ext optics Transmission - all_data['metadata']['ir_window_transmission']
     # Faixa de temperatura - all_data['metadata']['temperature_range']
 
+
     # save json file
     json_filename = os.path.join(image_folder, f"{image_filename}_metadata.json")
     with open(json_filename, "w", encoding="utf-8") as json_file:
@@ -150,11 +152,21 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     return response_dict
 
 
-def extract_measurements(thermogram: Any) -> Optional[dict]:
+def extract_measurements(thermogram: Any) -> list:
     """
     Extract measurements from a thermogram.
+
+    Args:
+        thermogram: Thermogram object from flyr
+
+    Returns:
+        List of Measurement objects
     """
-    return None  # FIXME: Implement this
+    measurement_extractor = MeasurementExtractor()
+    measurements = measurement_extractor.extract_measurements(thermogram)
+
+    # Convert Measurement objects to dictionaries for JSON serialization
+    return [measurement.model_dump(exclude_none=True) for measurement in measurements]
 
 
 def format_json_data(data: dict) -> dict:
