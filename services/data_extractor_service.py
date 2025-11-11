@@ -82,6 +82,9 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     # Initialize default values
     temperature_dict: list = []
     calculations: dict = {}
+    temperature_array = None
+
+    measurements = extract_measurements(thermogram, temperature_array)
 
     if celsius_array is not None and isinstance(celsius_array, list):
         temperature_df = pd.DataFrame(celsius_array)
@@ -96,21 +99,30 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         temperature_array = np.array(celsius_array)
 
         # Calculate temperature statistics
-        min_temp = thermal_calculations.get_min_from_temperature_array(temperature_array)  # type: ignore
-        max_temp = thermal_calculations.get_max_from_temperature_array(temperature_array)  # type: ignore
+        min_temp = measurements[0].get("max_temperature") or thermal_calculations.get_min_from_temperature_array(temperature_array)  # type: ignore
+        max_temp = measurements[1].get("max_temperature") or thermal_calculations.get_max_from_temperature_array(temperature_array)  # type: ignore
 
+        delta_t = thermal_calculations.generate_delta(min_temp, max_temp)
+        std_dev = thermal_calculations.get_standard_deviation_from_temperature_array(temperature_array)
+        severity_result = thermal_calculations.generate_severity_grade(
+            delta_t=delta_t,
+            std_dev=std_dev,
+        )
+        
         calculations = {
-            "min_temperature": min_temp,
-            "max_temperature": max_temp,
+            "min_temperature": thermal_calculations.get_min_from_temperature_array(
+                temperature_array
+            ),
+            "max_temperature": thermal_calculations.get_max_from_temperature_array(
+                temperature_array
+            ),
             "avg_temperature": thermal_calculations.get_average_from_temperature_array(temperature_array),  # type: ignore
             "median_temperature": thermal_calculations.get_median_from_temperature_array(temperature_array),  # type: ignore
-            "standard_deviation": thermal_calculations.get_standard_deviation_from_temperature_array(temperature_array),  # type: ignore
             "variance": thermal_calculations.get_variance_from_temperature_array(temperature_array),  # type: ignore
-            "delta_t": thermal_calculations.generate_delta(min_temp, max_temp),
-            # "mta": thermal_calculations.get_mta(),
+            "standard_deviation": std_dev,
+            "delta_t": delta_t,
+            "severity_result": severity_result,
         }
-
-    measurements = extract_measurements(thermogram)
 
     # Save Optical image to temp folder
     thermogram.optical_pil.save(
@@ -137,7 +149,6 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     # Ext optics Transmission - all_data['metadata']['ir_window_transmission']
     # Faixa de temperatura - all_data['metadata']['temperature_range']
 
-
     # save json file
     json_filename = os.path.join(image_folder, f"{image_filename}_metadata.json")
     with open(json_filename, "w", encoding="utf-8") as json_file:
@@ -152,18 +163,19 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
     return response_dict
 
 
-def extract_measurements(thermogram: Any) -> list:
+def extract_measurements(thermogram: Any, celsius_array: Any = None) -> list:
     """
-    Extract measurements from a thermogram.
+    Extract measurements from a thermogram with temperature statistics.
 
     Args:
         thermogram: Thermogram object from flyr
+        celsius_array: Temperature matrix in Celsius (numpy array)
 
     Returns:
-        List of Measurement objects
+        List of Measurement dictionaries with temperature statistics
     """
     measurement_extractor = MeasurementExtractor()
-    measurements = measurement_extractor.extract_measurements(thermogram)
+    measurements = measurement_extractor.extract_measurements(thermogram, celsius_array)
 
     # Convert Measurement objects to dictionaries for JSON serialization
     return [measurement.model_dump(exclude_none=True) for measurement in measurements]

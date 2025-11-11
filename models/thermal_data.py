@@ -116,7 +116,21 @@ class Measurement(BaseModel):
     y: Optional[int] = Field(None, description="Y coordinate")
     width: Optional[int] = Field(None, description="Width")
     height: Optional[int] = Field(None, description="Height")
-    temperature: Optional[float] = Field(None, description="Temperature in Celsius")
+
+    # Temperature statistics
+    temperature: Optional[float] = Field(
+        None, description="Average temperature in Celsius"
+    )
+    min_temperature: Optional[float] = Field(None, description="Minimum temperature")
+    max_temperature: Optional[float] = Field(None, description="Maximum temperature")
+    median_temperature: Optional[float] = Field(None, description="Median temperature")
+    std_deviation: Optional[float] = Field(None, description="Standard deviation")
+    variance: Optional[float] = Field(None, description="Variance")
+    percentile_25: Optional[float] = Field(None, description="25th percentile")
+    percentile_75: Optional[float] = Field(None, description="75th percentile")
+    percentile_90: Optional[float] = Field(None, description="90th percentile")
+
+    # Visual properties
     color: Optional[str] = Field(None, description="Color")
     label: Optional[str] = Field(None, description="Label")
     description: Optional[str] = Field(None, description="Description")

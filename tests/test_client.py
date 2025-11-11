@@ -70,6 +70,7 @@ def test_upload_inspection(image_path: str, user_id: str = "test_user_123"):
                 "user_id": user_id,
                 # "company_id": "22222222-2222-2222-2222-222222222222",
                 "company_id": "11111111-1111-1111-1111-111111111111",
+                "tag": 9999,
                 "email": "test@tenesso.com",
             }
             headers = {"X-API-Key": api_key}
@@ -112,8 +113,8 @@ if __name__ == "__main__":
     else:
         # Default image path
         image_path = "files/FLIR1970.jpg"
-        # image_path = "files/FLIR2856.jpg"
-        image_path = "files/FLIR2163.jpg"
+        image_path = "files/FLIR2856.jpg"
+        # image_path = "files/FLIR2163.jpg"
 
     test_upload_inspection(image_path)
 
