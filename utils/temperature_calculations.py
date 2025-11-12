@@ -163,8 +163,8 @@ def convert_temperature_unit(
 
     Args:
         temperature: The temperature to convert
-        unit_from: The unit to convert from (Celsius, Fahrenheit, Kelvin)
-        unit_to: The unit to convert to (Celsius, Fahrenheit, Kelvin)
+        unit_from: The unit to convert from (Celsius, Fahrenheit, Kelvin, K, C, F, °C, °F)
+        unit_to: The unit to convert to (Celsius, Fahrenheit, Kelvin, K, C, F, °C, °F)
 
     Returns:
         The converted temperature
@@ -172,6 +172,10 @@ def convert_temperature_unit(
     Raises:
         ValueError: If unsupported temperature unit is provided
     """
+    # Normalize unit names
+    unit_from = _normalize_temperature_unit(unit_from)
+    unit_to = _normalize_temperature_unit(unit_to)
+
     if unit_from == unit_to:
         return temperature
 
@@ -194,6 +198,45 @@ def convert_temperature_unit(
         return temperature_in_kelvin
     else:
         raise ValueError(f"Unsupported temperature unit: {unit_to}")
+
+
+def _normalize_temperature_unit(unit: str) -> str:
+    """
+    Normalize temperature unit name.
+
+    Args:
+        unit: Temperature unit string
+
+    Returns:
+        Normalized unit name (Celsius, Fahrenheit, or Kelvin)
+    """
+    unit_upper = unit.upper().strip()
+
+    if unit_upper in ["C", "°C", "CELSIUS"]:
+        return "Celsius"
+    elif unit_upper in ["F", "°F", "FAHRENHEIT"]:
+        return "Fahrenheit"
+    elif unit_upper in ["K", "KELVIN"]:
+        return "Kelvin"
+    else:
+        return unit  # Return original if not recognized
+
+
+def convert_temperature_value_to_celsius(value: float, original_unit: str) -> float:
+    """
+    Convert a temperature value to Celsius from any unit.
+
+    Args:
+        value: Temperature value
+        original_unit: Original temperature unit
+
+    Returns:
+        Temperature in Celsius
+    """
+    if value is None:
+        return None  # type: ignore
+
+    return convert_temperature_unit(value, original_unit, "Celsius")
 
 
 def generate_severity_grade(

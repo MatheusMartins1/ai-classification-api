@@ -26,60 +26,105 @@ class StorageInfo(BaseModel):
 class FlyrMetadata(BaseModel):
     """Metadata extracted from FLIR thermal image using flyr library."""
 
+    # Temperature units
     temperature_unit: Optional[str] = Field(
-        default="°C", description="Temperature unit"
+        default="C", description="Temperature unit (standardized to C)"
     )
     temperature_unit_original: Optional[str] = Field(
-        default="K", description="Temperature unit original"
+        default="K", description="Original temperature unit from camera"
     )
-    emissivity: Optional[float] = Field(None, description="Surface emissivity")
-    reflected_apparent_temperature: Optional[float] = Field(
-        None, description="Reflected apparent temperature"
-    )
-    atmospheric_temperature: Optional[float] = Field(
-        None, description="Atmospheric temperature"
-    )
-    relative_humidity: Optional[float] = Field(
-        None, description="Relative humidity percentage"
-    )
-    ir_window_temperature: Optional[float] = Field(
-        None, description="External optics temperature"
-    )
-    ir_window_transmission: Optional[float] = Field(
-        None, description="External optics transmission"
-    )
-    temperature_range: Optional[str] = Field(
-        None, description="Temperature range of the camera"
-    )
+
+    # Environmental parameters (converted to Celsius)
+    emissivity: Optional[float] = Field(None, description="Surface emissivity (0-1)")
     object_distance: Optional[float] = Field(
         None, description="Distance to object in meters"
     )
-    camera_model: Optional[str] = Field(None, description="Camera model")
-    camera_serial_number: Optional[str] = Field(
-        None, description="Camera serial number"
+    atmospheric_temperature: Optional[float] = Field(
+        None, description="Atmospheric temperature in °C"
     )
-    lens_model: Optional[str] = Field(None, description="Lens model")
-    filter_model: Optional[str] = Field(None, description="Filter model")
-    date_time_original: Optional[str] = Field(
-        None, description="Original capture datetime"
+    ir_window_temperature: Optional[float] = Field(
+        None, description="External optics temperature in °C"
     )
+    ir_window_transmission: Optional[float] = Field(
+        None, description="External optics transmission (0-1)"
+    )
+    reflected_apparent_temperature: Optional[float] = Field(
+        None, description="Reflected apparent temperature in °C"
+    )
+    relative_humidity: Optional[float] = Field(
+        None, description="Relative humidity (0-1)"
+    )
+
+    # Planck constants (for raw temperature calculation)
+    planck_r1: Optional[float] = Field(None, description="Planck R1 constant")
+    planck_b: Optional[float] = Field(None, description="Planck B constant")
+    planck_f: Optional[float] = Field(None, description="Planck F constant")
+    planck_o: Optional[int] = Field(None, description="Planck O constant")
+    atmospheric_trans_alpha1: Optional[float] = Field(
+        None, description="Atmospheric transmission alpha 1"
+    )
+    atmospheric_trans_alpha2: Optional[float] = Field(
+        None, description="Atmospheric transmission alpha 2"
+    )
+    atmospheric_trans_beta1: Optional[float] = Field(
+        None, description="Atmospheric transmission beta 1"
+    )
+    atmospheric_trans_beta2: Optional[float] = Field(
+        None, description="Atmospheric transmission beta 2"
+    )
+    atmospheric_trans_x: Optional[float] = Field(
+        None, description="Atmospheric transmission X"
+    )
+
+    # Raw value ranges
+    raw_value_range_min: Optional[int] = Field(
+        None, description="Minimum raw sensor value"
+    )
+    raw_value_range_max: Optional[int] = Field(
+        None, description="Maximum raw sensor value"
+    )
+    raw_value_median: Optional[int] = Field(None, description="Median raw sensor value")
+    raw_value_range: Optional[int] = Field(
+        None, description="Range of raw sensor values"
+    )
+
+    # Camera temperature ranges
+    camera_temperature_range_max: Optional[float] = Field(
+        None, description="Maximum camera temperature range"
+    )
+    camera_temperature_range_min: Optional[float] = Field(
+        None, description="Minimum camera temperature range"
+    )
+
+    # Additional metadata (excluded from JSON export)
     raw_metadata: Optional[Dict[str, Any]] = Field(
-        None, description="Raw metadata dictionary from flyr"
+        None, description="Complete raw metadata dictionary from flyr", exclude=True
     )
 
 
 class CameraMetadata(BaseModel):
     """Camera-specific metadata from FLIR thermal image."""
 
-    camera_manufacturer: Optional[str] = Field(None, description="Camera manufacturer")
-    camera_model: Optional[str] = Field(None, description="Camera model")
-    camera_serial_number: Optional[str] = Field(
-        None, description="Camera serial number"
+    # Resolution and file info
+    resolution_unit: Optional[int] = Field(None, description="Resolution unit")
+    exif_offset: Optional[int] = Field(None, description="EXIF offset in file")
+
+    # Camera identification
+    make: Optional[str] = Field(
+        None, description="Camera manufacturer (FLIR Systems AB)"
     )
-    lens_model: Optional[str] = Field(None, description="Lens model")
-    lens_serial_number: Optional[str] = Field(None, description="Lens serial number")
+    model: Optional[str] = Field(None, description="Camera model (e.g., FLIR E60)")
+    serial_number: Optional[str] = Field(None, description="Camera serial number")
+
+    # Date and time
+    date_time: Optional[str] = Field(None, description="Image capture date/time")
+
+    # GPS data
+    gps_data: Optional[Dict[str, Any]] = Field(None, description="GPS coordinates data")
+
+    # Complete raw metadata (excluded from JSON export)
     raw_camera_metadata: Optional[Dict[str, Any]] = Field(
-        None, description="Raw camera metadata dictionary"
+        None, description="Complete raw camera metadata dictionary", exclude=True
     )
 
 
@@ -98,7 +143,7 @@ class ExifToolMetadata(BaseModel):
     modify_date: Optional[str] = Field(None, description="File modification date")
     software: Optional[str] = Field(None, description="Software used")
     raw_exif_metadata: Optional[Dict[str, Any]] = Field(
-        None, description="Raw EXIF metadata dictionary"
+        None, description="Raw EXIF metadata dictionary", exclude=True
     )
 
 

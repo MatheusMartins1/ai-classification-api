@@ -28,6 +28,7 @@ settings = settings_module.settings
 
 from services.measurement_extractor import MeasurementExtractor
 from services.supabase_handler import SupabaseStorageHandler
+from services.thermal_data_builder import ThermalDataBuilder
 from utils import object_handler
 from utils import temperature_calculations as thermal_calculations
 from utils.LoggerConfig import LoggerConfig
@@ -43,124 +44,129 @@ logger = LoggerConfig.add_file_logger(
 
 
 def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
-    image_name_splited = image_name.split(".")
-    image_filename = image_name_splited[0]
+    """
+    Extract thermal data from FLIR image using ThermalDataBuilder.
+
+    Args:
+        image_name: Name of the FLIR image file
+
+    Returns:
+        Dictionary with extraction results and metadata
+    """
+    # Parse image name
+    image_name_parts = image_name.split(".")
+    image_filename = image_name_parts[0]
     image_folder = os.path.join("temp", image_filename)
-    os.makedirs(os.path.join("temp", image_filename), exist_ok=True)
 
-    # Initialize data structure
-    thermogram_data = {
-        "storage_info": {
-            "image_filename": image_filename,
-            "image_folder": image_folder,
-            "image_extension": image_name_splited[1],
-            "image_saved_ir_filename": f"{image_name_splited[0]}_IR.{image_name_splited[1]}",
-            "image_saved_real_filename": f"{image_name_splited[0]}_REAL.{image_name_splited[1]}",
-        }
-    }
+    # Create folder structure
+    os.makedirs(image_folder, exist_ok=True)
 
-    thermogram = flyr.unpack(
-        os.path.join(
-            image_folder,
-            thermogram_data.get("storage_info", {}).get("image_saved_ir_filename", ""),
-        )
+    # Build IR filename
+    ir_filename = f"{image_filename}_IR.{image_name_parts[1]}"
+    image_path = os.path.join(image_folder, ir_filename)
+
+    # Unpack thermogram
+    logger.info(f"Unpacking thermogram from: {image_path}")
+    thermogram = flyr.unpack(image_path)
+
+    # Initialize ThermalDataBuilder
+    thermal_builder = ThermalDataBuilder(temp_folder="temp")
+    all_data = object_handler.extract_all_attributes(thermogram, "thermogram")
+
+    # Build complete thermal image data with all conversions
+    logger.info("Building complete ThermalImageData...")
+    thermal_data = thermal_builder.build_thermal_image_data(
+        thermogram=thermogram,
+        image_name=image_name,
+        save_files=True,
     )
 
-    # Extract all thermogram attributes automatically
-    logger.info("Extracting all thermogram attributes...")
-    try:
-        all_data = extract_all_attributes(thermogram, "thermogram")
-        if isinstance(all_data, dict):
-            thermogram_data.update(all_data)
+    # Save optical image
+    logger.info("Saving optical image...")
+    optical_filename = f"{image_filename}_REAL.jpg"
+    thermogram.optical_pil.save(os.path.join(image_folder, optical_filename))
 
-    except Exception as e:
-        logger.info(f"Error extracting thermogram data: {e}")
-        celsius_array = None
+    # Convert to dictionary
+    thermal_data_dict = thermal_data.model_dump(exclude_none=True)
 
-    celsius_array = thermogram_data.get("celsius", None)
+    # Calculate additional statistics (severity grade)
+    calculations = _calculate_additional_statistics(thermal_data)
+    thermal_data_dict["calculations"] = calculations
 
-    # Initialize default values
-    temperature_dict: list = []
-    calculations: dict = {}
-    temperature_array = None
-
-    measurements = extract_measurements(thermogram, temperature_array)
-
-    if celsius_array is not None and isinstance(celsius_array, list):
-        temperature_df = pd.DataFrame(celsius_array)
-        temperature_dict = temperature_df.to_dict(orient="records")
-        temperature_df.to_csv(
-            os.path.join(image_folder, f"{image_filename}_temperature.csv"), index=False
-        )
-        temperature_df.to_json(
-            os.path.join(image_folder, f"{image_filename}_temperature.json"),
-            orient="records",
-        )
-        temperature_array = np.array(celsius_array)
-
-        # Calculate temperature statistics
-        min_temp = measurements[0].get("max_temperature") or thermal_calculations.get_min_from_temperature_array(temperature_array)  # type: ignore
-        max_temp = measurements[1].get("max_temperature") or thermal_calculations.get_max_from_temperature_array(temperature_array)  # type: ignore
-
-        delta_t = thermal_calculations.generate_delta(min_temp, max_temp)
-        std_dev = thermal_calculations.get_standard_deviation_from_temperature_array(temperature_array)
-        severity_result = thermal_calculations.generate_severity_grade(
-            delta_t=delta_t,
-            std_dev=std_dev,
-        )
-        
-        calculations = {
-            "min_temperature": thermal_calculations.get_min_from_temperature_array(
-                temperature_array
-            ),
-            "max_temperature": thermal_calculations.get_max_from_temperature_array(
-                temperature_array
-            ),
-            "avg_temperature": thermal_calculations.get_average_from_temperature_array(temperature_array),  # type: ignore
-            "median_temperature": thermal_calculations.get_median_from_temperature_array(temperature_array),  # type: ignore
-            "variance": thermal_calculations.get_variance_from_temperature_array(temperature_array),  # type: ignore
-            "standard_deviation": std_dev,
-            "delta_t": delta_t,
-            "severity_result": severity_result,
-        }
-
-    # Save Optical image to temp folder
-    thermogram.optical_pil.save(
-        os.path.join(image_folder, f"{image_filename}_REAL.jpg")
-    )
-
-    image_metadata = {
-        "storage_info": thermogram_data.get("storage_info", {}),
-        "metadata": thermogram_data.get("metadata", None),
-        "camera_metadata": thermogram_data.get("camera_metadata", None),
-        "pip_info": thermogram_data.get("pip_info", None),
-        "palette": thermogram_data.get("palette", None),
-        "temperature_json": temperature_dict,
-        "measurements": measurements,
-        "calculations": calculations,
-    }
-
-    # NS câmera - X
-    # Emissividade - V
-    # Temperatura média refletida - V
-    # Temperatura Atmosférica - V
-    # Relative humidity: - V
-    # Ext optics temperature - all_data['metadata']['ir_window_temperature']
-    # Ext optics Transmission - all_data['metadata']['ir_window_transmission']
-    # Faixa de temperatura - all_data['metadata']['temperature_range']
-
-    # save json file
+    # Save metadata JSON
     json_filename = os.path.join(image_folder, f"{image_filename}_metadata.json")
     with open(json_filename, "w", encoding="utf-8") as json_file:
-        json.dump(image_metadata, json_file, indent=2, ensure_ascii=False)
+        json.dump(thermal_data_dict, json_file, indent=2, ensure_ascii=False)
 
+    logger.info(f"Metadata extraction completed for: {image_name}")
+
+    # Build response
     response_dict = {
         "success": True,
         "message": "Metadata extracted successfully",
-        "metadata": image_metadata,
+        "metadata": thermal_data_dict,
     }
 
     return response_dict
+
+
+def _calculate_additional_statistics(thermal_data) -> dict:
+    """
+    Calculate additional statistics like severity grade.
+
+    Args:
+        thermal_data: ThermalImageData object
+
+    Returns:
+        Dictionary with additional calculations
+    """
+    calculations = {}
+
+    try:
+        if thermal_data.temperature_data:
+            temp_data = thermal_data.temperature_data
+
+            # Get basic statistics
+            min_temp = temp_data.min_temperature
+            max_temp = temp_data.max_temperature
+            delta_t = temp_data.delta_t
+
+            # Calculate std deviation from celsius array
+            if temp_data.celsius:
+                celsius_np = np.array(temp_data.celsius)
+                std_dev = (
+                    thermal_calculations.get_standard_deviation_from_temperature_array(
+                        celsius_np
+                    )
+                )
+                variance = thermal_calculations.get_variance_from_temperature_array(
+                    celsius_np
+                )
+            else:
+                std_dev = 0.0
+                variance = 0.0
+
+            # Calculate severity grade
+            severity_result = thermal_calculations.generate_severity_grade(
+                delta_t=delta_t if delta_t else 0.0,
+                std_dev=std_dev,
+            )
+
+            calculations = {
+                "min_temperature": min_temp,
+                "max_temperature": max_temp,
+                "avg_temperature": temp_data.avg_temperature,
+                "median_temperature": temp_data.median_temperature,
+                "standard_deviation": std_dev,
+                "variance": variance,
+                "delta_t": delta_t,
+                "severity_result": severity_result,
+            }
+
+    except Exception as e:
+        logger.error(f"Error calculating additional statistics: {e}")
+
+    return calculations
 
 
 def extract_measurements(thermogram: Any, celsius_array: Any = None) -> list:
