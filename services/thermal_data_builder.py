@@ -60,6 +60,7 @@ class ThermalDataBuilder:
         thermogram: Any,
         image_name: str,
         save_files: bool = True,
+        tag: str = "",
         exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> ThermalImageData:
         """
@@ -77,7 +78,7 @@ class ThermalDataBuilder:
         logger.info(f"Building ThermalImageData for: {image_name}")
 
         # Create storage info
-        storage_info = self._create_storage_info(image_name)
+        storage_info = self._create_storage_info(image_name, tag)
 
         # Build metadata with temperature conversion
         flyr_metadata = self.build_flyr_metadata(thermogram)
@@ -119,6 +120,7 @@ class ThermalDataBuilder:
         thermogram: Any,
         image_name: str,
         save_files: bool = True,
+        tag: str = "",
         exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> Dict[str, Any]:
         """
@@ -128,32 +130,36 @@ class ThermalDataBuilder:
             thermogram: Thermogram object from flyr
             image_name: Name of the thermal image file
             save_files: Whether to save temperature files
+            tag: Tag identifier for the image
             exiftool_metadata: Optional ExifToolMetadata object
 
         Returns:
             Dictionary with all thermal image data
         """
         thermal_data = self.build_thermal_image_data(
-            thermogram, image_name, save_files, exiftool_metadata
+            thermogram, image_name, save_files, tag, exiftool_metadata
         )
         return thermal_data.model_dump(exclude_none=True)
 
-    def _create_storage_info(self, image_name: str) -> StorageInfo:
+    def _create_storage_info(self, image_name: str, tag: str = "") -> StorageInfo:
         """
         Create StorageInfo from image name.
 
         Args:
             image_name: Name of the image file
+            tag: Tag identifier for the image
 
         Returns:
             StorageInfo object
         """
+        tag = tag or ""
         image_name_parts = image_name.split(".")
         image_filename = image_name_parts[0]
         image_extension = image_name_parts[1] if len(image_name_parts) > 1 else "jpg"
         image_folder = os.path.join(self.temp_folder, image_filename)
 
         return StorageInfo(
+            tag=tag,
             image_filename=image_filename,
             image_folder=image_folder,
             image_extension=image_extension,

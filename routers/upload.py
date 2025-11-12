@@ -139,7 +139,8 @@ async def upload_inspection(
 
         for index, image in enumerate(processed_ir_files):
             extracted_data = data_extractor_service.extract_data_from_image(
-                image_name=image["image_name"]
+                image_name=image["image_name"],
+                tag=form_data.get("tag", ""),
             )
             processed_ir_files[index].update(extracted_data)
 

@@ -68,6 +68,10 @@ class ExifToolExtractor:
             logger.info("Successfully extracted EXIF metadata")
             return metadata
 
+        except ValueError as e:
+            logger.error(f"Validation error in EXIF metadata: {e}")
+            logger.warning("Continuing without complete EXIF metadata")
+            return None
         except Exception as e:
             logger.error(f"Error extracting EXIF metadata: {e}")
             return None
@@ -154,16 +158,38 @@ class ExifToolExtractor:
             except (ValueError, TypeError):
                 return None
 
+        # Helper function to convert to string safely
+        def safe_str(value):
+            if value is None:
+                return None
+            try:
+                return str(value)
+            except (ValueError, TypeError):
+                return None
+
         metadata = ExifToolMetadata(
             # File Information
+            source_file=get_value("SourceFile"),
             file_name=get_value("File:FileName", "FileName"),
+            file_directory=get_value("File:Directory"),
             file_size=safe_int(get_value("File:FileSize", "FileSize")),
+            file_modify_date=get_value("File:FileModifyDate"),
+            file_access_date=get_value("File:FileAccessDate"),
+            file_create_date=get_value("File:FileCreateDate"),
             file_type=get_value("File:FileType", "FileType"),
             file_type_extension=get_value(
                 "File:FileTypeExtension", "FileTypeExtension"
             ),
             mime_type=get_value("File:MIMEType", "MIMEType"),
             file_permissions=get_value("File:FilePermissions", "FilePermissions"),
+            exif_byte_order=get_value("File:ExifByteOrder"),
+            color_components=safe_int(get_value("File:ColorComponents")),
+            y_cb_cr_sub_sampling=get_value("File:YCbCrSubSampling"),
+            # JFIF Information
+            jfif_version=safe_str(get_value("JFIF:JFIFVersion")),
+            jfif_resolution_unit=get_value("JFIF:ResolutionUnit"),
+            jfif_x_resolution=safe_float(get_value("JFIF:XResolution")),
+            jfif_y_resolution=safe_float(get_value("JFIF:YResolution")),
             # Image Dimensions
             image_width=safe_int(
                 get_value("File:ImageWidth", "ImageWidth", "EXIF:ImageWidth")
@@ -191,9 +217,15 @@ class ExifToolExtractor:
                 "SerialNumber",
                 "CameraSerialNumber",
             ),
+            camera_model=get_value("APP1:CameraModel"),
+            camera_part_number=get_value("APP1:CameraPartNumber"),
+            camera_software=get_value("APP1:CameraSoftware"),
             lens_make=get_value("EXIF:LensMake", "LensMake"),
             lens_model=get_value("APP1:LensModel", "EXIF:LensModel", "LensModel"),
-            lens_serial_number=get_value("EXIF:LensSerialNumber", "LensSerialNumber"),
+            lens_serial_number=get_value(
+                "APP1:LensSerialNumber", "EXIF:LensSerialNumber", "LensSerialNumber"
+            ),
+            lens_part_number=get_value("APP1:LensPartNumber", "LensPartNumber"),
             internal_serial_number=get_value(
                 "EXIF:InternalSerialNumber", "InternalSerialNumber"
             ),
@@ -205,14 +237,19 @@ class ExifToolExtractor:
                 "EXIF:ModifyDate", "ModifyDate", "File:FileModifyDate"
             ),
             date_time_original=get_value(
-                "EXIF:DateTimeOriginal", "DateTimeOriginal", "FLIR:DateTimeOriginal"
+                "APP1:DateTimeOriginal",
+                "EXIF:DateTimeOriginal",
+                "DateTimeOriginal",
+                "FLIR:DateTimeOriginal",
             ),
             sub_sec_time_original=get_value(
                 "EXIF:SubSecTimeOriginal", "SubSecTimeOriginal"
             ),
             # Software & Processing
             software=get_value("EXIF:Software", "Software", "IFD0:Software"),
-            creator_software=get_value("XMP:CreatorTool", "CreatorTool"),
+            creator_software=get_value(
+                "APP1:CreatorSoftware", "XMP:CreatorTool", "CreatorTool"
+            ),
             firmware_version=get_value(
                 "EXIF:FirmwareVersion", "FirmwareVersion", "FLIR:FirmwareVersion"
             ),
@@ -297,6 +334,12 @@ class ExifToolExtractor:
                     "FLIR:CameraTemperatureMinSaturated",
                     "CameraTemperatureMinSaturated",
                 )
+            ),
+            image_temperature_max=safe_float(
+                get_value("MakerNotes:ImageTemperatureMax")
+            ),
+            image_temperature_min=safe_float(
+                get_value("MakerNotes:ImageTemperatureMin")
             ),
             # FLIR Thermal Specific - Object Parameters
             emissivity=safe_float(
@@ -423,13 +466,14 @@ class ExifToolExtractor:
                 get_value("APP1:PaletteStretch", "PaletteStretch")
             ),
             palette_file_name=get_value("APP1:PaletteFileName", "PaletteFileName"),
+            palette_name=get_value("APP1:PaletteName"),
+            palette=get_value("APP1:Palette"),
             # FLIR Thermal Specific - Focus & Lens
             focus_step_count=safe_int(
                 get_value("APP1:FocusStepCount", "FocusStepCount")
             ),
             focus_distance=safe_float(get_value("APP1:FocusDistance", "FocusDistance")),
             field_of_view=safe_float(get_value("APP1:FieldOfView", "FieldOfView")),
-            lens_part_number=get_value("APP1:LensPartNumber", "LensPartNumber"),
             # FLIR Thermal Specific - Calibration
             calibration_date=get_value("APP1:CalibrationDate", "CalibrationDate"),
             date_time_original_flir=get_value(
@@ -437,6 +481,8 @@ class ExifToolExtractor:
             ),
             filter_model=get_value("APP1:FilterModel", "FilterModel"),
             filter_part_number=get_value("APP1:FilterPartNumber", "FilterPartNumber"),
+            filter_serial_number=get_value("APP1:FilterSerialNumber"),
+            frame_rate=safe_float(get_value("APP1:FrameRate")),
             # FLIR Thermal Specific - Embedded Image
             embedded_image_width=safe_int(
                 get_value("APP1:EmbeddedImageWidth", "EmbeddedImageWidth")
@@ -445,12 +491,20 @@ class ExifToolExtractor:
                 get_value("APP1:EmbeddedImageHeight", "EmbeddedImageHeight")
             ),
             embedded_image_type=get_value(
-                "FLIR:EmbeddedImageType", "EmbeddedImageType"
+                "APP1:EmbeddedImageType", "FLIR:EmbeddedImageType", "EmbeddedImageType"
             ),
+            embedded_image=get_value("APP1:EmbeddedImage"),
             real_2_ir=get_value("APP1:Real2IR", "Real2IR"),
+            raw_thermal_image=get_value("APP1:RawThermalImage"),
             # FLIR Thermal Specific - Measurement Tools
             marked_image=get_value("APP1:MarkedImage", "MarkedImage"),
             measurement_tool=get_value("APP1:MeasurementTool", "MeasurementTool"),
+            meas1_type=get_value("APP1:Meas1Type"),
+            meas1_params=get_value("APP1:Meas1Params"),
+            meas1_label=safe_str(get_value("APP1:Meas1Label")),
+            meas2_type=get_value("APP1:Meas2Type"),
+            meas2_params=get_value("APP1:Meas2Params"),
+            meas2_label=safe_str(get_value("APP1:Meas2Label")),
             # FLIR Thermal Specific - Offsets & Gains
             offset_x=safe_int(get_value("APP1:OffsetX", "OffsetX")),
             offset_y=safe_int(get_value("APP1:OffsetY", "OffsetY")),
@@ -462,6 +516,12 @@ class ExifToolExtractor:
             app_version=get_value("APP1:AppVersion", "AppVersion"),
             file_source=get_value("EXIF:FileSource", "FileSource"),
             scene_capture_type=get_value("EXIF:SceneCaptureType", "SceneCaptureType"),
+            # EXIF Standard Fields
+            exif_version=get_value("EXIF:ExifVersion"),
+            exposure_time=safe_float(get_value("EXIF:ExposureTime")),
+            focal_length=safe_float(get_value("EXIF:FocalLength")),
+            flashpix_version=get_value("EXIF:FlashpixVersion"),
+            image_unique_id=get_value("EXIF:ImageUniqueID"),
             # FLIR Thermal Specific - Misc
             subject_distance=safe_float(
                 get_value("EXIF:SubjectDistance", "SubjectDistance")
@@ -485,18 +545,23 @@ class ExifToolExtractor:
                 "EXIF:ComponentsConfiguration", "ComponentsConfiguration"
             ),
             y_cb_cr_positioning=get_value("EXIF:YCbCrPositioning", "YCbCrPositioning"),
-            y_cb_cr_sub_sampling=get_value("EXIF:YCbCrSubSampling", "YCbCrSubSampling"),
             encoding_process=get_value("File:EncodingProcess", "EncodingProcess"),
             bits_per_sample=safe_int(get_value("EXIF:BitsPerSample", "BitsPerSample")),
             compression=get_value("EXIF:Compression", "Compression"),
             # Thumbnail
             thumbnail_offset=safe_int(
-                get_value("IFD1:ThumbnailOffset", "ThumbnailOffset")
+                get_value(
+                    "EXIF:ThumbnailOffset", "IFD1:ThumbnailOffset", "ThumbnailOffset"
+                )
             ),
             thumbnail_length=safe_int(
-                get_value("IFD1:ThumbnailLength", "ThumbnailLength")
+                get_value(
+                    "EXIF:ThumbnailLength", "IFD1:ThumbnailLength", "ThumbnailLength"
+                )
             ),
-            thumbnail_image=get_value("IFD1:ThumbnailImage", "ThumbnailImage"),
+            thumbnail_image=get_value(
+                "EXIF:ThumbnailImage", "IFD1:ThumbnailImage", "ThumbnailImage"
+            ),
             # XMP & IPTC Metadata
             creator=get_value("XMP:Creator", "Creator", "IPTC:By-line"),
             rights=get_value("XMP:Rights", "Rights", "IPTC:CopyrightNotice"),
@@ -510,8 +575,18 @@ class ExifToolExtractor:
             orientation=get_value(
                 "EXIF:Orientation", "Orientation", "IFD0:Orientation"
             ),
+            # Composite Fields
+            image_size=get_value("Composite:ImageSize"),
+            megapixels=safe_float(get_value("Composite:Megapixels")),
+            shutter_speed=get_value("Composite:ShutterSpeed"),
+            peak_spectral_sensitivity=safe_float(
+                get_value("Composite:PeakSpectralSensitivity")
+            ),
+            focal_length_35efl=get_value("Composite:FocalLength35efl"),
+            # ExifTool Metadata
+            exiftool_version=safe_str(get_value("ExifTool:ExifToolVersion")),
             # Raw metadata (excluded from JSON)
             raw_exif_metadata=exif_data,
         )
-        
+
         return metadata

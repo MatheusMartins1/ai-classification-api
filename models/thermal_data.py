@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 class StorageInfo(BaseModel):
     """Storage information for thermal image files."""
 
+    tag: Optional[str] = Field(None, description="Tag ativo")
     image_filename: str = Field(..., description="Base filename without extension")
     image_folder: str = Field(..., description="Folder path where image is stored")
     image_extension: str = Field(..., description="File extension")
@@ -137,12 +138,32 @@ class ExifToolMetadata(BaseModel):
     # ============================================================
     # FILE INFORMATION
     # ============================================================
+    source_file: Optional[str] = Field(None, description="Source file path")
     file_name: Optional[str] = Field(None, description="File name")
+    file_directory: Optional[str] = Field(None, description="File directory path")
     file_size: Optional[int] = Field(None, description="File size in bytes")
+    file_modify_date: Optional[str] = Field(None, description="File modification date")
+    file_access_date: Optional[str] = Field(None, description="File access date")
+    file_create_date: Optional[str] = Field(None, description="File creation date")
     file_type: Optional[str] = Field(None, description="File type (e.g., JPEG)")
     file_type_extension: Optional[str] = Field(None, description="File extension")
     mime_type: Optional[str] = Field(None, description="MIME type")
     file_permissions: Optional[str] = Field(None, description="File permissions")
+    exif_byte_order: Optional[str] = Field(None, description="EXIF byte order")
+    color_components: Optional[int] = Field(
+        None, description="Number of color components"
+    )
+    y_cb_cr_sub_sampling: Optional[str] = Field(None, description="YCbCr sub-sampling")
+
+    # ============================================================
+    # JFIF INFORMATION
+    # ============================================================
+    jfif_version: Optional[str] = Field(None, description="JFIF version")
+    jfif_resolution_unit: Optional[str] = Field(
+        None, description="JFIF resolution unit"
+    )
+    jfif_x_resolution: Optional[float] = Field(None, description="JFIF X resolution")
+    jfif_y_resolution: Optional[float] = Field(None, description="JFIF Y resolution")
 
     # ============================================================
     # IMAGE DIMENSIONS
@@ -163,9 +184,13 @@ class ExifToolMetadata(BaseModel):
     camera_serial_number: Optional[Union[str, int]] = Field(
         None, description="Camera serial number"
     )
+    camera_model: Optional[str] = Field(None, description="APP1 camera model")
+    camera_part_number: Optional[str] = Field(None, description="Camera part number")
+    camera_software: Optional[str] = Field(None, description="Camera software version")
     lens_make: Optional[str] = Field(None, description="Lens manufacturer")
     lens_model: Optional[str] = Field(None, description="Lens model")
     lens_serial_number: Optional[str] = Field(None, description="Lens serial number")
+    lens_part_number: Optional[str] = Field(None, description="Lens part number")
     internal_serial_number: Optional[str] = Field(
         None, description="Internal serial number"
     )
@@ -247,6 +272,12 @@ class ExifToolMetadata(BaseModel):
     )
     camera_temperature_min_saturated: Optional[float] = Field(
         None, description="Camera temperature min saturated"
+    )
+    image_temperature_max: Optional[float] = Field(
+        None, description="MakerNotes image temperature maximum"
+    )
+    image_temperature_min: Optional[float] = Field(
+        None, description="MakerNotes image temperature minimum"
     )
 
     # ============================================================
@@ -334,6 +365,10 @@ class ExifToolMetadata(BaseModel):
     palette_method: Optional[int] = Field(None, description="Palette method")
     palette_stretch: Optional[int] = Field(None, description="Palette stretch")
     palette_file_name: Optional[str] = Field(None, description="Palette file name")
+    palette_name: Optional[str] = Field(None, description="Palette name")
+    palette: Optional[str] = Field(
+        None, description="Binary palette data (base64 or hex)"
+    )
 
     # ============================================================
     # FLIR THERMAL SPECIFIC - FOCUS & LENS
@@ -341,7 +376,6 @@ class ExifToolMetadata(BaseModel):
     focus_step_count: Optional[int] = Field(None, description="Focus step count")
     focus_distance: Optional[float] = Field(None, description="Focus distance")
     field_of_view: Optional[float] = Field(None, description="Field of view")
-    lens_part_number: Optional[str] = Field(None, description="Lens part number")
 
     # ============================================================
     # FLIR THERMAL SPECIFIC - CALIBRATION
@@ -352,6 +386,10 @@ class ExifToolMetadata(BaseModel):
     )
     filter_model: Optional[str] = Field(None, description="Filter model")
     filter_part_number: Optional[str] = Field(None, description="Filter part number")
+    filter_serial_number: Optional[str] = Field(
+        None, description="Filter serial number"
+    )
+    frame_rate: Optional[float] = Field(None, description="Frame rate (fps)")
 
     # ============================================================
     # FLIR THERMAL SPECIFIC - EMBEDDED IMAGE
@@ -363,8 +401,14 @@ class ExifToolMetadata(BaseModel):
         None, description="Embedded image height"
     )
     embedded_image_type: Optional[str] = Field(None, description="Embedded image type")
+    embedded_image: Optional[str] = Field(
+        None, description="Binary embedded image data (base64 or hex)"
+    )
     real_2_ir: Optional[Union[str, float]] = Field(
         None, description="Real to IR transformation ratio"
+    )
+    raw_thermal_image: Optional[str] = Field(
+        None, description="Binary raw thermal image data (base64 or hex)"
     )
 
     # ============================================================
@@ -372,6 +416,12 @@ class ExifToolMetadata(BaseModel):
     # ============================================================
     marked_image: Optional[str] = Field(None, description="Marked image flag")
     measurement_tool: Optional[str] = Field(None, description="Measurement tool used")
+    meas1_type: Optional[str] = Field(None, description="Measurement 1 type")
+    meas1_params: Optional[str] = Field(None, description="Measurement 1 parameters")
+    meas1_label: Optional[str] = Field(None, description="Measurement 1 label")
+    meas2_type: Optional[str] = Field(None, description="Measurement 2 type")
+    meas2_params: Optional[str] = Field(None, description="Measurement 2 parameters")
+    meas2_label: Optional[str] = Field(None, description="Measurement 2 label")
 
     # ============================================================
     # FLIR THERMAL SPECIFIC - OFFSETS & GAINS
@@ -389,6 +439,15 @@ class ExifToolMetadata(BaseModel):
     app_version: Optional[str] = Field(None, description="Application version")
     file_source: Optional[str] = Field(None, description="File source")
     scene_capture_type: Optional[str] = Field(None, description="Scene capture type")
+
+    # ============================================================
+    # EXIF STANDARD FIELDS
+    # ============================================================
+    exif_version: Optional[str] = Field(None, description="EXIF version")
+    exposure_time: Optional[float] = Field(None, description="Exposure time in seconds")
+    focal_length: Optional[float] = Field(None, description="Focal length in mm")
+    flashpix_version: Optional[str] = Field(None, description="FlashPix version")
+    image_unique_id: Optional[str] = Field(None, description="Image unique ID")
 
     # ============================================================
     # FLIR THERMAL SPECIFIC - MISC
@@ -414,7 +473,6 @@ class ExifToolMetadata(BaseModel):
         None, description="Components configuration"
     )
     y_cb_cr_positioning: Optional[str] = Field(None, description="YCbCr positioning")
-    y_cb_cr_sub_sampling: Optional[str] = Field(None, description="YCbCr sub-sampling")
     encoding_process: Optional[str] = Field(None, description="Encoding process")
     bits_per_sample: Optional[int] = Field(None, description="Bits per sample")
     compression: Optional[str] = Field(None, description="Compression type")
@@ -440,6 +498,24 @@ class ExifToolMetadata(BaseModel):
     # ORIENTATION
     # ============================================================
     orientation: Optional[str] = Field(None, description="Image orientation")
+
+    # ============================================================
+    # COMPOSITE FIELDS
+    # ============================================================
+    image_size: Optional[str] = Field(None, description="Composite image size (WxH)")
+    megapixels: Optional[float] = Field(None, description="Composite megapixels")
+    shutter_speed: Optional[str] = Field(None, description="Composite shutter speed")
+    peak_spectral_sensitivity: Optional[float] = Field(
+        None, description="Composite peak spectral sensitivity"
+    )
+    focal_length_35efl: Optional[str] = Field(
+        None, description="Composite focal length 35mm equivalent"
+    )
+
+    # ============================================================
+    # EXIFTOOL METADATA
+    # ============================================================
+    exiftool_version: Optional[str] = Field(None, description="ExifTool version used")
 
     # ============================================================
     # RAW METADATA

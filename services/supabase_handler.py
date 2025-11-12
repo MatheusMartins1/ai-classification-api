@@ -158,7 +158,7 @@ class SupabaseStorageHandler:
             return False
 
     async def send_data_to_database(
-        self, response_data: Dict[str, Any], table_name: str = "inspecao_termica"
+        self, response_data: Dict[str, Any], table_name: str = "diagnosticos_mvp"
     ) -> bool:
         """
         Save thermal inspection data to Supabase database.
@@ -168,7 +168,7 @@ class SupabaseStorageHandler:
 
             -- Identificação
             id_anomalia        TEXT,
-            tag_ativo          TEXT,
+            tag          TEXT,
             nome_componente    TEXT,
             data_inspecao      DATE,
 
@@ -237,9 +237,10 @@ class SupabaseStorageHandler:
         metadata = image_data.get("metadata", {})
         storage_info = metadata.get("storage_info", {})
         calculations = metadata.get("calculations", {})
-        flyr_metadata = metadata.get("metadata", {})
+        flyr_metadata = metadata.get("flyr_metadata", {})
         company_id = response_data.get("user_info", {}).get("company_id", "")
         image_filename = storage_info.get("image_filename", "")
+        exiftool_metadata = metadata.get("exiftool_metadata", {})
 
         # Build storage URLs
         base_path = f"companies/{company_id}/{image_filename}"
@@ -259,13 +260,16 @@ class SupabaseStorageHandler:
             std_dev=std_dev if std_dev else 0.0,
         )
 
+        created_date = exiftool_metadata.get("create_date", "1900:01:01").replace(
+            ":", "-"
+        )[0:10]
         # Parse database record
         db_record = {
             # Identificação
             "id_anomalia": image_filename,
-            "tag_ativo": None,  # TODO: Get from user input
+            "tag_ativo": storage_info.get("tag", ""),
             "nome_componente": None,  # TODO: Get from user input
-            "data_inspecao": None,  # TODO: Get from metadata or user input
+            "data_inspecao": created_date,
             # Condições técnicas
             "tipo_componente": None,  # TODO: Get from user input
             "temperatura_maxima": self._round_decimal(
@@ -287,6 +291,7 @@ class SupabaseStorageHandler:
             "imagem_termica_url": imagem_termica_url,
             "imagem_visual_url": imagem_visual_url,
             "arquivo_metadado_url": arquivo_metadado_url,
+            "imagem_visual_nome": image_filename + "_REAL.jpg",
         }
 
         return db_record
