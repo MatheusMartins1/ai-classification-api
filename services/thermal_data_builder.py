@@ -56,7 +56,11 @@ class ThermalDataBuilder:
         self.measurement_extractor = MeasurementExtractor()
 
     def build_thermal_image_data(
-        self, thermogram: Any, image_name: str, save_files: bool = True
+        self,
+        thermogram: Any,
+        image_name: str,
+        save_files: bool = True,
+        exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> ThermalImageData:
         """
         Build complete ThermalImageData object from thermogram.
@@ -65,6 +69,7 @@ class ThermalDataBuilder:
             thermogram: Thermogram object from flyr
             image_name: Name of the thermal image file
             save_files: Whether to save temperature files (CSV, JSON)
+            exiftool_metadata: Optional ExifToolMetadata object
 
         Returns:
             Complete ThermalImageData object with all metadata and conversions
@@ -99,7 +104,7 @@ class ThermalDataBuilder:
             storage_info=storage_info,
             flyr_metadata=flyr_metadata,
             camera_metadata=camera_metadata,
-            exiftool_metadata=None,  # TODO: Implement ExifTool extraction
+            exiftool_metadata=exiftool_metadata,
             temperature_data=temperature_data,
             measurements=measurements,
             pip_info=pip_info,
@@ -110,7 +115,11 @@ class ThermalDataBuilder:
         return thermal_data
 
     def build_thermal_image_data_as_dict(
-        self, thermogram: Any, image_name: str, save_files: bool = True
+        self,
+        thermogram: Any,
+        image_name: str,
+        save_files: bool = True,
+        exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> Dict[str, Any]:
         """
         Build complete thermal image data and return as dictionary.
@@ -119,11 +128,14 @@ class ThermalDataBuilder:
             thermogram: Thermogram object from flyr
             image_name: Name of the thermal image file
             save_files: Whether to save temperature files
+            exiftool_metadata: Optional ExifToolMetadata object
 
         Returns:
             Dictionary with all thermal image data
         """
-        thermal_data = self.build_thermal_image_data(thermogram, image_name, save_files)
+        thermal_data = self.build_thermal_image_data(
+            thermogram, image_name, save_files, exiftool_metadata
+        )
         return thermal_data.model_dump(exclude_none=True)
 
     def _create_storage_info(self, image_name: str) -> StorageInfo:

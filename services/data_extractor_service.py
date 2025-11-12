@@ -26,6 +26,7 @@ from config import settings as settings_module
 # settings_module.settings = settings_module.Settings(base_dir=base_dir)
 settings = settings_module.settings
 
+from services.exiftool_extractor import ExifToolExtractor
 from services.measurement_extractor import MeasurementExtractor
 from services.supabase_handler import SupabaseStorageHandler
 from services.thermal_data_builder import ThermalDataBuilder
@@ -71,7 +72,16 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
 
     # Initialize ThermalDataBuilder
     thermal_builder = ThermalDataBuilder(temp_folder="temp")
-    all_data = object_handler.extract_all_attributes(thermogram, "thermogram")
+
+    # Extract EXIF metadata using ExifTool
+    logger.info("Extracting EXIF metadata with ExifTool...")
+    exiftool_extractor = ExifToolExtractor()
+    exiftool_metadata = exiftool_extractor.extract_metadata(image_path)
+
+    if exiftool_metadata:
+        logger.info("EXIF metadata extracted successfully")
+    else:
+        logger.warning("Failed to extract EXIF metadata, continuing without it")
 
     # Build complete thermal image data with all conversions
     logger.info("Building complete ThermalImageData...")
@@ -79,6 +89,7 @@ def extract_data_from_image(image_name: str = "FLIR1970.jpg") -> dict:
         thermogram=thermogram,
         image_name=image_name,
         save_files=True,
+        exiftool_metadata=exiftool_metadata,  # type: ignore
     )
 
     # Save optical image
