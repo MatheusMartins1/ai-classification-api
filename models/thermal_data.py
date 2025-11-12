@@ -213,10 +213,47 @@ class PipInfo(BaseModel):
 
 
 class PaletteInfo(BaseModel):
-    """Palette information if available."""
+    """Palette/color map information from thermal image."""
 
-    # TODO: Implement this
-    pass
+    # Color definitions
+    above_color: Optional[tuple] = Field(
+        None, description="RGB color for values above range (r, g, b)"
+    )
+    below_color: Optional[tuple] = Field(
+        None, description="RGB color for values below range (r, g, b)"
+    )
+    overflow_color: Optional[tuple] = Field(
+        None, description="RGB color for overflow values (r, g, b)"
+    )
+    underflow_color: Optional[tuple] = Field(
+        None, description="RGB color for underflow values (r, g, b)"
+    )
+    isotherm1_color: Optional[tuple] = Field(
+        None, description="RGB color for isotherm 1 (r, g, b)"
+    )
+    isotherm2_color: Optional[tuple] = Field(
+        None, description="RGB color for isotherm 2 (r, g, b)"
+    )
+
+    # Palette properties
+    method: Optional[int] = Field(None, description="Palette method/algorithm")
+    name: Optional[str] = Field(None, description="Palette name")
+    num_colors: Optional[int] = Field(None, description="Number of colors in palette")
+    stretch: Optional[int] = Field(None, description="Palette stretch factor")
+
+    # File reference
+    file_name: Optional[str] = Field(None, description="Palette file name")
+    path: Optional[str] = Field(None, description="Path to palette file")
+
+    # RGB values array
+    rgb_values: Optional[List[tuple]] = Field(
+        None, description="Array of RGB tuples for each color in palette"
+    )
+
+    # YCbCr values array (if available)
+    yccs: Optional[List[tuple]] = Field(
+        None, description="Array of YCbCr tuples for each color"
+    )
 
 
 class ThermalImageData(BaseModel):
@@ -243,6 +280,9 @@ class ThermalImageData(BaseModel):
     )
     pip_info: Optional[PipInfo] = Field(
         None, description="Picture-in-Picture information"
+    )
+    palette_info: Optional[PaletteInfo] = Field(
+        None, description="Palette/color map information"
     )
 
     class Config:

@@ -19,6 +19,7 @@ from models.thermal_data import (
     ExifToolMetadata,
     FlyrMetadata,
     Measurement,
+    PaletteInfo,
     PipInfo,
     StorageInfo,
     TemperatureData,
@@ -77,6 +78,7 @@ class ThermalDataBuilder:
         flyr_metadata = self.build_flyr_metadata(thermogram)
         camera_metadata = self.build_camera_metadata(thermogram)
         pip_info = self.build_pip_info(thermogram)
+        palette_info = self.build_palette_info(thermogram)
 
         # Get temperature unit for conversions
         temperature_unit_original = (
@@ -101,6 +103,7 @@ class ThermalDataBuilder:
             temperature_data=temperature_data,
             measurements=measurements,
             pip_info=pip_info,
+            palette_info=palette_info,
         )
 
         logger.info(f"Successfully built ThermalImageData for: {image_name}")
@@ -420,6 +423,69 @@ class ThermalDataBuilder:
 
         except Exception as e:
             logger.warning(f"Error building PipInfo: {e}")
+            return None
+
+    def build_palette_info(self, thermogram: Any) -> Optional[PaletteInfo]:
+        """
+        Build PaletteInfo from thermogram.
+
+        Args:
+            thermogram: Thermogram object from flyr
+
+        Returns:
+            PaletteInfo object or None
+        """
+        try:
+            if not hasattr(thermogram, "palette"):
+                return None
+
+            palette_raw = thermogram.palette
+
+            # If it's an object, extract attributes
+            if not isinstance(palette_raw, dict):
+                palette_dict = extract_all_attributes(palette_raw, "palette_info")
+            else:
+                palette_dict = palette_raw
+
+            if not isinstance(palette_dict, dict):
+                return None
+
+            # Convert RGB values to list of tuples if it's a list
+            rgb_values = palette_dict.get("rgb_values") or palette_dict.get("rgbs")
+            if rgb_values and isinstance(rgb_values, list):
+                # Ensure each item is a tuple
+                rgb_values = [tuple(rgb) if isinstance(rgb, (list, tuple)) else rgb for rgb in rgb_values]  # type: ignore
+
+            # Convert YCbCr values to list of tuples if available
+            yccs = palette_dict.get("yccs")
+            if yccs and isinstance(yccs, list):
+                yccs = [tuple(ycc) if isinstance(ycc, (list, tuple)) else ycc for ycc in yccs]  # type: ignore
+
+            # Helper function to safely convert to tuple
+            def safe_tuple(value):
+                if value and isinstance(value, (list, tuple)):
+                    return tuple(value)
+                return None
+
+            return PaletteInfo(
+                above_color=safe_tuple(palette_dict.get("above_color")),
+                below_color=safe_tuple(palette_dict.get("below_color")),
+                overflow_color=safe_tuple(palette_dict.get("overflow_color")),
+                underflow_color=safe_tuple(palette_dict.get("underflow_color")),
+                isotherm1_color=safe_tuple(palette_dict.get("isotherm1_color")),
+                isotherm2_color=safe_tuple(palette_dict.get("isotherm2_color")),
+                method=palette_dict.get("method"),
+                name=palette_dict.get("name"),
+                num_colors=palette_dict.get("num_colors"),
+                stretch=palette_dict.get("stretch"),
+                file_name=palette_dict.get("file_name"),
+                path=palette_dict.get("path"),
+                rgb_values=rgb_values,
+                yccs=yccs,
+            )
+
+        except Exception as e:
+            logger.warning(f"Error building PaletteInfo: {e}")
             return None
 
     def _detect_temperature_unit(self, metadata_dict: dict) -> Optional[str]:
