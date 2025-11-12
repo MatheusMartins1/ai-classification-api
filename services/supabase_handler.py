@@ -259,6 +259,7 @@ class SupabaseStorageHandler:
             delta_t=delta_t if delta_t else 0.0,
             std_dev=std_dev if std_dev else 0.0,
         )
+        url = "https://dgffrnqhxtfrxasmsisy.supabase.co/storage/v1/object/public/imagem"
 
         created_date = exiftool_metadata.get("create_date", "1900:01:01").replace(
             ":", "-"
@@ -288,9 +289,9 @@ class SupabaseStorageHandler:
             "diagnostico_ia": None,  # TODO: Implement AI diagnosis
             "recomendacao_ia": None,  # TODO: Implement AI recommendation
             # Arquivos
-            "imagem_termica_url": imagem_termica_url,
-            "imagem_visual_url": imagem_visual_url,
-            "arquivo_metadado_url": arquivo_metadado_url,
+            "imagem_termica_url": f"{url}/{imagem_termica_url}",
+            "imagem_visual_url": f"{url}/{imagem_visual_url}",
+            "arquivo_metadado_url": f"{url}/{arquivo_metadado_url}",
             "imagem_visual_nome": image_filename + "_REAL.jpg",
         }
 

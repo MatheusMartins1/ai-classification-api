@@ -9,14 +9,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ai-regression-api:prod
+    image: ai-regression-api
     container_name: ai-regression-api-prod
     ports:
       - "${PORT:-8345}:${PORT:-8345}"
     env_file:
       - .env.prod
     environment:
-      - APP_NAME=${APP_NAME:-Image Metadata API}
+      - APP_NAME="${APP_NAME:-Image Metadata API}"
       - APP_VERSION=${APP_VERSION:-1.0.0}
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -29,16 +29,16 @@ services:
       - ./config:/app/config:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8345/health')"]
+      # usa curl para checar; se sua imagem não tiver curl, veja a nota abaixo
+      test: ["CMD-SHELL", "curl -f http://localhost:${PORT:-8345}/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 5s
     networks:
-      - ai-regression-a pi-network
+      - ai-regression-api-network
 
 networks:
   ai-regression-api-network:
     driver: bridge
     name: ai-regression-api-network
-

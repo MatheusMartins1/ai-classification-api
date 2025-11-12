@@ -273,3 +273,4 @@ _delete
 *.log
 _chats
 temp/*
+_ssh/*
