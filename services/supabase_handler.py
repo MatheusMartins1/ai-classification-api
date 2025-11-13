@@ -10,6 +10,7 @@ import asyncio
 import os
 import shutil
 from typing import Any, Dict, List, Optional
+import datetime
 
 from utils import temperature_calculations
 from utils.LoggerConfig import LoggerConfig
@@ -57,15 +58,15 @@ class SupabaseStorageHandler:
 
         for image in response_data["ir_images"]:
             storage_info = image.get("metadata", {}).get("storage_info", {})
-            local_folder = storage_info.get("image_folder", "")
-            company_id = response_data.get("user_info", {}).get("company_id", "")
-            image_filename = storage_info.get("image_filename", "")
+            local_folder = storage_info.get("image_folder",None)
+            company_id = response_data.get("user_info", {}).get("company_id",None)
+            image_filename = storage_info.get("image_filename",None)
             content_type = image.get("content_type")
 
             # Upload IR and Real images
             files_to_upload = [
-                storage_info.get("image_saved_ir_filename", ""),
-                storage_info.get("image_saved_real_filename", ""),
+                storage_info.get("image_saved_ir_filename",None),
+                storage_info.get("image_saved_real_filename",None),
             ]
 
             for filename in files_to_upload:
@@ -238,8 +239,8 @@ class SupabaseStorageHandler:
         storage_info = metadata.get("storage_info", {})
         calculations = metadata.get("calculations", {})
         flyr_metadata = metadata.get("flyr_metadata", {})
-        company_id = response_data.get("user_info", {}).get("company_id", "")
-        image_filename = storage_info.get("image_filename", "")
+        company_id = response_data.get("user_info", {}).get("company_id",None)
+        image_filename = storage_info.get("image_filename", None)
         exiftool_metadata = metadata.get("exiftool_metadata", {})
 
         # Build storage URLs
@@ -261,13 +262,16 @@ class SupabaseStorageHandler:
         )
         url = "https://dgffrnqhxtfrxasmsisy.supabase.co/storage/v1/object/public/imagem"
 
-        created_date = storage_info.get("created_date", "")
+        created_date = storage_info.get("created_date",None)
+        if created_date is None or created_date == "":
+            created_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
         # Parse database record
         db_record = {
-            "id": storage_info.get("database_id", ""),
+            "id": storage_info.get("database_id",None),
             # Identificação
             "id_anomalia": image_filename,
-            "tag_ativo": storage_info.get("tag", ""),
+            "tag_ativo": storage_info.get("tag",None),
             "nome_componente": None,  # TODO: Get from user input
             "data_inspecao": created_date,
             # Condições técnicas
