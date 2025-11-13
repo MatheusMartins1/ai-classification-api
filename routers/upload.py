@@ -12,7 +12,7 @@ import shutil
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from config.api_key import verify_api_key
@@ -38,10 +38,8 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 @router.post("/upload-inspection")
 async def upload_inspection(
     request: Request,
-    user_id: str = Form(...),
-    company_id: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
     api_key: str = Depends(verify_api_key),
+    company_id: Optional[str] = Header(None, alias="x-company-id"),
 ) -> JSONResponse:
     """
     Receive IR (infrared) images from frontend application.
@@ -49,11 +47,11 @@ async def upload_inspection(
     This endpoint handles the upload of thermal IR images sent as multipart/form-data
     with field names like ir_image_0, ir_image_1, etc.
 
+    Metadata is received via HTTP headers with x- prefix.
+
     Args:
         request: FastAPI request object to access form data
-        user_id: User identifier
-        company_id: Company identifier (optional)
-        email: User email (optional)
+        company_id: Company identifier (from header x-company-id)
 
     Returns:
         JSON response with processing status
@@ -63,16 +61,21 @@ async def upload_inspection(
     """
     try:
         # Parse multipart form data
-        form_data = await request.form()
+        form_files = await request.form()
+
+        # Build form_data dict from headers
+        form_data = {
+            "company_id": company_id or "",
+        }
 
         logger.info(
-            f"Recebendo upload de inspeção - User: {user_id}, "
-            f"Form fields: {list(form_data.keys())}"
+            f"Recebendo upload de inspeção - Company: {company_id}, "
+            f"Form fields: {list(form_files.keys())}"
         )
 
         # Extract IR image files (ir_image_0, ir_image_1, etc.)
         processed_ir_files: List[Dict] = []
-        for field_name, field_value in form_data.items():
+        for field_name, field_value in form_files.items():
             if field_name.startswith("ir_image_"):
                 # Check if it's a file by checking if it has file attributes
                 if (
@@ -140,7 +143,7 @@ async def upload_inspection(
         for index, image in enumerate(processed_ir_files):
             extracted_data = data_extractor_service.extract_data_from_image(
                 image_name=image["image_name"],
-                form_data=dict(form_data),
+                form_data=form_data,
             )
             processed_ir_files[index].update(extracted_data)
 
@@ -148,18 +151,14 @@ async def upload_inspection(
         response_data = {
             "status": "success",
             "message": "Imagens IR recebidas com sucesso",
-            "user_info": {
-                "user_id": form_data.get("criado_por", ""),
+            "company_info": {
                 "company_id": form_data.get("company_id", ""),
             },
             "files_processed": len(processed_ir_files),
             "ir_images": processed_ir_files,
         }
 
-        logger.info(
-            f"Upload concluído com sucesso - User: {user_id}, "
-            f"Total imagens IR: {len(processed_ir_files)}"
-        )
+        logger.info(f"Total imagens IR: {len(processed_ir_files)}")
         try:
             # Send data to storage and database without waiting for the response
             asyncio.create_task(
