@@ -35,7 +35,10 @@ def generate_delta(temp1: float, temp2: float) -> float:
         Delta temperature (temp2 - temp1)
     """
     # TODO: Check if this calculation is correct
-    return float(np.subtract(temp2, temp1))
+    delta_t = float(np.subtract(temp1, temp2))
+    if delta_t < 0:
+        delta_t = delta_t * -1
+    return delta_t
 
 
 def get_max_from_temperature_array(

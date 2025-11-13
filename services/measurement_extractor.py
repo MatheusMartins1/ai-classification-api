@@ -45,14 +45,13 @@ class MeasurementExtractor:
     }
 
     def extract_measurements(
-        self, thermogram: Any, celsius_array: Optional[np.ndarray] = None
+        self, thermogram: Any
     ) -> List[Measurement]:
         """
         Extract all measurements from a thermogram with temperature statistics.
 
         Args:
             thermogram: Thermogram object from flyr library
-            celsius_array: Temperature matrix in Celsius (numpy array)
 
         Returns:
             List of Measurement objects with temperature statistics
@@ -75,7 +74,7 @@ class MeasurementExtractor:
             logger.info(f"Found {len(raw_measurements)} measurements in thermogram")
 
             # Get temperature array if not provided
-            if celsius_array is None and hasattr(thermogram, "celsius"):
+            if hasattr(thermogram, "celsius"):
                 celsius_array = thermogram.celsius
 
             # Extract each measurement

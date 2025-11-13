@@ -95,13 +95,13 @@ class ThermalDataBuilder:
         )
         logger.info(f"Temperature unit original: {temperature_unit_original}")
 
+        # Extract measurements with temperature statistics
+        measurements = self._build_measurements(thermogram)
+
         # Extract and process temperature data
         temperature_data = self._build_temperature_data(
-            thermogram, storage_info, save_files
+            thermogram, storage_info, save_files, measurements
         )
-
-        # Extract measurements with temperature statistics
-        measurements = self._build_measurements(thermogram, temperature_data)
 
         # Build complete thermal image data
         thermal_data = ThermalImageData(
@@ -191,7 +191,11 @@ class ThermalDataBuilder:
         )
 
     def _build_temperature_data(
-        self, thermogram: Any, storage_info: StorageInfo, save_files: bool
+        self,
+        thermogram: Any,
+        storage_info: StorageInfo,
+        save_files: bool,
+        measurements: Optional[List[Measurement]],
     ) -> Optional[TemperatureData]:
         """
         Build TemperatureData from thermogram.
@@ -232,7 +236,17 @@ class ThermalDataBuilder:
             median_temp = temperature_calculations.get_median_from_temperature_array(
                 celsius_np
             )
-            delta_t = temperature_calculations.generate_delta(min_temp, max_temp)
+
+
+            if measurements and len(measurements) < 3:
+                max_temp_measurements = measurements[0].max_temperature
+                min_temp_measurements = measurements[1].max_temperature
+
+                delta_t = temperature_calculations.generate_delta(
+                    max_temp_measurements, min_temp_measurements
+                )
+            else:
+                delta_t = None
 
             # Save temperature files if requested
             if save_files:
@@ -251,9 +265,7 @@ class ThermalDataBuilder:
             logger.error(f"Error building TemperatureData: {e}")
             return None
 
-    def _build_measurements(
-        self, thermogram: Any, temperature_data: Optional[TemperatureData]
-    ) -> Optional[List[Measurement]]:
+    def _build_measurements(self, thermogram: Any) -> Optional[List[Measurement]]:
         """
         Build measurements from thermogram.
 
@@ -265,13 +277,10 @@ class ThermalDataBuilder:
             List of Measurement objects or None
         """
         try:
-            celsius_array = None
-            if temperature_data and hasattr(thermogram, "celsius"):
-                celsius_array = thermogram.celsius
+            measurements = self.measurement_extractor.extract_measurements(thermogram)
 
-            measurements = self.measurement_extractor.extract_measurements(
-                thermogram, celsius_array
-            )
+            # Ordenar os measurements por max de temperatura
+            measurements.sort(key=lambda x: x.max_temperature, reverse=True)
 
             return measurements if measurements else None
 

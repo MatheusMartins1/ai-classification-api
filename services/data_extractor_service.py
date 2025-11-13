@@ -185,7 +185,7 @@ def _calculate_additional_statistics(thermal_data) -> dict:
     return calculations
 
 
-def extract_measurements(thermogram: Any, celsius_array: Any = None) -> list:
+def extract_measurements(thermogram: Any) -> list:
     """
     Extract measurements from a thermogram with temperature statistics.
 
@@ -197,7 +197,7 @@ def extract_measurements(thermogram: Any, celsius_array: Any = None) -> list:
         List of Measurement dictionaries with temperature statistics
     """
     measurement_extractor = MeasurementExtractor()
-    measurements = measurement_extractor.extract_measurements(thermogram, celsius_array)
+    measurements = measurement_extractor.extract_measurements(thermogram)
 
     # Convert Measurement objects to dictionaries for JSON serialization
     return [measurement.model_dump(exclude_none=True) for measurement in measurements]
