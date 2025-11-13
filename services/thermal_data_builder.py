@@ -9,6 +9,7 @@ All rights reserved.
 """
 
 import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 import numpy as np  # type: ignore
@@ -60,7 +61,7 @@ class ThermalDataBuilder:
         thermogram: Any,
         image_name: str,
         save_files: bool = True,
-        tag: str = "",
+        form_data: Optional[dict] = None,
         exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> ThermalImageData:
         """
@@ -70,6 +71,7 @@ class ThermalDataBuilder:
             thermogram: Thermogram object from flyr
             image_name: Name of the thermal image file
             save_files: Whether to save temperature files (CSV, JSON)
+            form_data: Form data containing tag and other metadata
             exiftool_metadata: Optional ExifToolMetadata object
 
         Returns:
@@ -78,7 +80,8 @@ class ThermalDataBuilder:
         logger.info(f"Building ThermalImageData for: {image_name}")
 
         # Create storage info
-        storage_info = self._create_storage_info(image_name, tag)
+        form_data = form_data or {}
+        storage_info = self._create_storage_info(image_name, form_data)
 
         # Build metadata with temperature conversion
         flyr_metadata = self.build_flyr_metadata(thermogram)
@@ -120,7 +123,7 @@ class ThermalDataBuilder:
         thermogram: Any,
         image_name: str,
         save_files: bool = True,
-        tag: str = "",
+        form_data: Optional[dict] = None,
         exiftool_metadata: Optional[ExifToolMetadata] = None,
     ) -> Dict[str, Any]:
         """
@@ -130,18 +133,18 @@ class ThermalDataBuilder:
             thermogram: Thermogram object from flyr
             image_name: Name of the thermal image file
             save_files: Whether to save temperature files
-            tag: Tag identifier for the image
+            form_data: Form data containing tag and other metadata
             exiftool_metadata: Optional ExifToolMetadata object
 
         Returns:
             Dictionary with all thermal image data
         """
         thermal_data = self.build_thermal_image_data(
-            thermogram, image_name, save_files, tag, exiftool_metadata
+            thermogram, image_name, save_files, form_data, exiftool_metadata
         )
         return thermal_data.model_dump(exclude_none=True)
 
-    def _create_storage_info(self, image_name: str, tag: str = "") -> StorageInfo:
+    def _create_storage_info(self, image_name: str, form_data: dict) -> StorageInfo:
         """
         Create StorageInfo from image name.
 
@@ -152,14 +155,34 @@ class ThermalDataBuilder:
         Returns:
             StorageInfo object
         """
-        tag = tag or ""
+        database_id = str(uuid.uuid4())
+        tag = form_data.get("tag", "")
+        created_date = form_data.get("data_criacao", "")
+        id_inspecao = form_data.get("id_inspecao", "")
+        empresa_site = form_data.get("empresa_site", "")
+        localizacao_1 = form_data.get("localizacao_1", "")
+        localizacao_2 = form_data.get("localizacao_2", "")
+        divisao = form_data.get("divisao", "")
+        setor = form_data.get("setor", "")
+        user_id = form_data.get("criado_por", "")
+        company_id = form_data.get("company_id", "")
         image_name_parts = image_name.split(".")
         image_filename = image_name_parts[0]
         image_extension = image_name_parts[1] if len(image_name_parts) > 1 else "jpg"
         image_folder = os.path.join(self.temp_folder, image_filename)
 
         return StorageInfo(
+            database_id=database_id,
+            id_inspecao=id_inspecao,
             tag=tag,
+            empresa_site=empresa_site,
+            localizacao_1=localizacao_1,
+            localizacao_2=localizacao_2,
+            divisao=divisao,
+            setor=setor,
+            user_id=user_id,
+            company_id=company_id,
+            created_date=created_date,
             image_filename=image_filename,
             image_folder=image_folder,
             image_extension=image_extension,

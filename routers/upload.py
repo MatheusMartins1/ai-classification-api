@@ -140,7 +140,7 @@ async def upload_inspection(
         for index, image in enumerate(processed_ir_files):
             extracted_data = data_extractor_service.extract_data_from_image(
                 image_name=image["image_name"],
-                tag=form_data.get("tag", ""),
+                form_data=dict(form_data),
             )
             processed_ir_files[index].update(extracted_data)
 
@@ -149,9 +149,8 @@ async def upload_inspection(
             "status": "success",
             "message": "Imagens IR recebidas com sucesso",
             "user_info": {
-                "user_id": user_id,
-                "company_id": company_id,
-                "email": email,
+                "user_id": form_data.get("criado_por", ""),
+                "company_id": form_data.get("company_id", ""),
             },
             "files_processed": len(processed_ir_files),
             "ir_images": processed_ir_files,

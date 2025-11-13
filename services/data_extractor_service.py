@@ -45,17 +45,19 @@ logger = LoggerConfig.add_file_logger(
 
 
 def extract_data_from_image(
-    image_name: str = "FLIR1970.jpg", tag: str = "1234567890"
+    image_name: str = "FLIR1970.jpg", form_data: Optional[dict] = None
 ) -> dict:
     """
     Extract thermal data from FLIR image using ThermalDataBuilder.
 
     Args:
         image_name: Name of the FLIR image file
+        form_data: Form data containing tag and other metadata
 
     Returns:
         Dictionary with extraction results and metadata
     """
+    form_data = form_data or {}
     # Parse image name
     image_name_parts = image_name.split(".")
     image_filename = image_name_parts[0]
@@ -91,7 +93,7 @@ def extract_data_from_image(
         thermogram=thermogram,
         image_name=image_name,
         save_files=True,
-        tag=tag,
+        form_data=form_data,
         exiftool_metadata=exiftool_metadata,  # type: ignore
     )
 

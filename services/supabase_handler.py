@@ -261,11 +261,10 @@ class SupabaseStorageHandler:
         )
         url = "https://dgffrnqhxtfrxasmsisy.supabase.co/storage/v1/object/public/imagem"
 
-        created_date = exiftool_metadata.get("create_date", "1900:01:01").replace(
-            ":", "-"
-        )[0:10]
+        created_date = storage_info.get("created_date", "")
         # Parse database record
         db_record = {
+            "id": storage_info.get("database_id", ""),
             # Identificação
             "id_anomalia": image_filename,
             "tag_ativo": storage_info.get("tag", ""),

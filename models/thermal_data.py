@@ -14,7 +14,26 @@ from pydantic import BaseModel, Field
 class StorageInfo(BaseModel):
     """Storage information for thermal image files."""
 
+    # Database identifiers
+    database_id: Optional[str] = Field(None, description="Unique database ID (UUID)")
+    id_inspecao: Optional[str] = Field(None, description="Inspection ID")
+
+    # Location and organization
     tag: Optional[str] = Field(None, description="Tag ativo")
+    empresa_site: Optional[str] = Field(None, description="Company site")
+    localizacao_1: Optional[str] = Field(None, description="Location level 1")
+    localizacao_2: Optional[str] = Field(None, description="Location level 2")
+    divisao: Optional[str] = Field(None, description="Division")
+    setor: Optional[str] = Field(None, description="Sector")
+
+    # User and company
+    user_id: Optional[str] = Field(None, description="User ID who created")
+    company_id: Optional[str] = Field(None, description="Company ID")
+
+    # Dates
+    created_date: Optional[str] = Field(None, description="Creation date")
+
+    # File information
     image_filename: str = Field(..., description="Base filename without extension")
     image_folder: str = Field(..., description="Folder path where image is stored")
     image_extension: str = Field(..., description="File extension")
