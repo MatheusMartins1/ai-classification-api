@@ -7,10 +7,10 @@ All rights reserved.
 """
 
 import asyncio
+import datetime
 import os
 import shutil
 from typing import Any, Dict, List, Optional
-import datetime
 
 from utils import temperature_calculations
 from utils.LoggerConfig import LoggerConfig
@@ -58,15 +58,15 @@ class SupabaseStorageHandler:
 
         for image in response_data["ir_images"]:
             storage_info = image.get("metadata", {}).get("storage_info", {})
-            local_folder = storage_info.get("image_folder",None)
-            company_id = response_data.get("user_info", {}).get("company_id",None)
-            image_filename = storage_info.get("image_filename",None)
+            local_folder = storage_info.get("image_folder", None)
+            company_id = storage_info.get("company_id", None)
+            image_filename = storage_info.get("image_filename", None)
             content_type = image.get("content_type")
 
             # Upload IR and Real images
             files_to_upload = [
-                storage_info.get("image_saved_ir_filename",None),
-                storage_info.get("image_saved_real_filename",None),
+                storage_info.get("image_saved_ir_filename", None),
+                storage_info.get("image_saved_real_filename", None),
             ]
 
             for filename in files_to_upload:
@@ -167,22 +167,34 @@ class SupabaseStorageHandler:
         Table Schema:
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
+            -- User and company identification
+            company_id         UUID,
+            user_id            UUID,
+            id_inspecao        UUID,
+
             -- Identificação
             id_anomalia        TEXT,
-            tag          TEXT,
+            tag_ativo          TEXT,
             nome_componente    TEXT,
             data_inspecao      DATE,
 
             -- Condições técnicas
-            tipo_componente    TEXT,
             temperatura_maxima NUMERIC(5,2),
             temperatura_minima NUMERIC(5,2),
+            temperatura_mediana NUMERIC(5,2),
             delta_t            NUMERIC(5,2),
             mta                NUMERIC(5,2),
             desvio_padrao      NUMERIC(6,3),
             emissividade       NUMERIC(4,3),
+            distancia_m        NUMERIC(5,2),
+
+            -- Camera information
+            modelo_camera      TEXT,
+            serie_camera       TEXT,
+            lente              TEXT,
+
+            -- Severity and diagnosis
             grau_severidade    TEXT,
-            observacoes_tecnicas TEXT,
 
             -- Resultado IA
             diagnostico_ia     TEXT,
@@ -239,7 +251,7 @@ class SupabaseStorageHandler:
         storage_info = metadata.get("storage_info", {})
         calculations = metadata.get("calculations", {})
         flyr_metadata = metadata.get("flyr_metadata", {})
-        company_id = response_data.get("user_info", {}).get("company_id",None)
+        company_id = response_data.get("user_info", {}).get("company_id", None)
         image_filename = storage_info.get("image_filename", None)
         exiftool_metadata = metadata.get("exiftool_metadata", {})
 
@@ -262,32 +274,45 @@ class SupabaseStorageHandler:
         )
         url = "https://dgffrnqhxtfrxasmsisy.supabase.co/storage/v1/object/public/imagem"
 
-        created_date = storage_info.get("created_date",None)
+        created_date = storage_info.get("created_date", None)
         if created_date is None or created_date == "":
             created_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
         # Parse database record
         db_record = {
-            "id": storage_info.get("database_id",None),
+            "id": storage_info.get("database_id", None),
+            # User and company identification
+            "company_id": company_id,
+            "user_id": response_data.get("user_info", {}).get("user_id", None),
+            "id_inspecao": storage_info.get("id_inspecao", None),
             # Identificação
             "id_anomalia": image_filename,
-            "tag_ativo": storage_info.get("tag",None),
+            "tag_ativo": storage_info.get("tag", None),
             "nome_componente": None,  # TODO: Get from user input
             "data_inspecao": created_date,
             # Condições técnicas
-            "tipo_componente": None,  # TODO: Get from user input
             "temperatura_maxima": self._round_decimal(
                 calculations.get("max_temperature"), 2
             ),
             "temperatura_minima": self._round_decimal(
                 calculations.get("min_temperature"), 2
             ),
+            "temperatura_mediana": self._round_decimal(
+                calculations.get("median_temperature"), 2
+            ),
             "delta_t": self._round_decimal(delta_t, 2),
             "mta": self._round_decimal(calculations.get("mta"), 2),
             "desvio_padrao": self._round_decimal(std_dev, 3),
             "emissividade": self._round_decimal(flyr_metadata.get("emissivity"), 3),
+            "distancia_m": self._round_decimal(
+                exiftool_metadata.get("subject_distance"), 2
+            ),
+            # Camera information
+            "modelo_camera": exiftool_metadata.get("camera_model_name"),
+            "serie_camera": exiftool_metadata.get("camera_serial_number"),
+            "lente": exiftool_metadata.get("lens_model"),
+            # Severity and diagnosis
             "grau_severidade": severity_result.get("status"),
-            "observacoes_tecnicas": " | ".join(severity_result.get("observations", [])),
             # Resultado IA
             "diagnostico_ia": None,  # TODO: Implement AI diagnosis
             "recomendacao_ia": None,  # TODO: Implement AI recommendation
@@ -295,7 +320,6 @@ class SupabaseStorageHandler:
             "imagem_termica_url": f"{url}/{imagem_termica_url}",
             "imagem_visual_url": f"{url}/{imagem_visual_url}",
             "arquivo_metadado_url": f"{url}/{arquivo_metadado_url}",
-            "imagem_visual_nome": image_filename + "_REAL.jpg",
         }
 
         return db_record

@@ -92,6 +92,7 @@ class SupabaseService:
         options = {"content-type": content_type} if content_type else {}
 
         if if_exists == "overwrite":
+            logger.info("overwrite")
             try:
                 self.delete_file(bucket_name, file_path)
             except Exception as e:
